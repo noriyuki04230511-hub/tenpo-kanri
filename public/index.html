@@ -305,7 +305,7 @@ const tnum=t=>t.name.replace('卓','');
 
 function alerts(){
   const a=[];
-  S.staff.forEach(s=>{ if(!s.inAt){const m=mins(s.shift); if(m>=5) a.push({lv:'crit',t:`出勤ボタンが押されていません：${s.name}さん`,d:`シフト開始 ${hm(s.shift)}（${m}分経過）。本人が出勤ボタンを押すと消えます。`});}});
+  if(S.shop&&S.shop.opens&&now()>=S.shop.opens+5*M&&!S.staff.some(s=>s.inAt)) a.push({lv:'crit',t:'まだ誰も出勤ボタンを押していません',d:`開店時刻 ${hm(S.shop.opens)} を${mins(S.shop.opens)}分過ぎています。出勤したスタッフが出勤ボタンを押すと消えます。`});
   S.resv.forEach(r=>{ if(r.st!=='seated') return; const d=rwait(r), tb=S.tables.find(x=>x.id===r.tid), who=r.staff?staffName(r.staff)+'さん':'未定';
     const tail=`${tb?tb.name+'を用意しました。':''}担当：${who}。受付を始めると消えます。`;
     if(d>0) a.push({lv:'warn',tid:r.tid,t:`予約の${LEAD}分前です：${hm(r.at)}　${r.purpose}`,d:`あと${d}分。${tail}`});
@@ -419,7 +419,7 @@ home(){
     ${al.length?`<button class="b-alert" id="to-mgr" data-a="role" data-v="mgr">確認が必要<i>${al.length}</i></button>`:''}</div></div>`;
   const body=`
   <section class="sec"><div class="row between"><h2>出勤</h2><span class="sub">出勤したら、自分の名前の「出勤」を押します</span></div>
-    <div class="grid g3">${[...S.staff].sort((a,b)=>(a.inAt?1:0)-(b.inAt?1:0)).map(s=>{const late=!s.inAt&&mins(s.shift)>=5;return `<div class="person ${s.inAt?'':'off'}">
+    <div class="grid g3">${[...S.staff].sort((a,b)=>(a.inAt?1:0)-(b.inAt?1:0)).map(s=>{const late=false;return `<div class="person ${s.inAt?'':'off'}">
       ${late?`<span class="badge">開始から${mins(s.shift)}分</span>`:''}<span class="ava">${esc(s.name[0])}</span><span><span class="nm">${esc(s.name)}</span><br><span class="st">${s.inAt?'出勤 '+hm(s.inAt):esc(s.kind)}</span></span>
       ${s.inAt?'':`<button class="btn blue s" id="in-${s.id}" data-a="clockin" data-id="${s.id}">出勤</button>`}</div>`}).join('')}
       <button class="person add" id="add-help" data-a="go" data-v="help">${PLUS}応援スタッフを追加</button></div></section>
