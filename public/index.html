@@ -238,10 +238,11 @@ label{font-size:14px;color:var(--ink2);display:flex;flex-direction:column;gap:6p
 <script>
 'use strict';
 const TYPES=[
- {k:'in_guide',n:'インバウンド 操作説明',d:'サポート会員の操作説明。ヒアリングなしで始められます',g:'来店',inbound:true,skip:true},
+ {k:'in_guide',n:'インバウンド操作説明（サポート会員ヒアリングなし）',d:'サポート会員の操作説明。ヒアリングなしで始められます',g:'来店',inbound:true,skip:true},
+ {k:'in_guide_h',n:'インバウンド操作説明（ヒアリングあり）',d:'操作説明のご来店で、ヒアリングも行う場合',g:'来店',inbound:true},
  {k:'in_meo',n:'インバウンド MEO広告',d:'地図の検索や広告を見て来店した、新しいお客様',g:'来店',inbound:true},
  {k:'in_req',n:'インバウンド（要件あり）',d:'プラン変更・料金収納など、用件が決まっている来店',g:'来店',inbound:true},
- {k:'in',n:'インバウンド',d:'上の3つに当てはまらない来店',g:'来店',inbound:true},
+ {k:'in',n:'インバウンド',d:'上の4つに当てはまらない来店',g:'来店',inbound:true},
  {k:'out',n:'アウトバウンド',d:'店の外での声掛けから着席',g:'声掛け'},
  {k:'fix',n:'什器付き',d:'什器での声掛けから着席',g:'声掛け'},
  {k:'event',n:'イベント',d:'イベント会場での接客',g:'声掛け'},
