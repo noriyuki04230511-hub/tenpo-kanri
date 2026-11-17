@@ -423,7 +423,7 @@ resv(){
     <div class="b-right"><div class="b-stat"><b>${open}</b> 件<small>これからの予約</small></div></div></div>`;
   return {t:'予約',band,body:`<section class="sec"><div class="row between"><h2>予約の一覧</h2><button class="btn s" id="resv-new" data-a="rnew">予約を登録${CHEV}</button></div>
     <div>${list.map(r=>resvRow(r,true)).join('')}</div>
-    <p class="sub">お名前・電話番号は登録しません。お客様には予約番号をお伝えします。15分前のお知らせは、担当スタッフと店舗の責任者のSlackにも届きます（この試作では送信しません）。予約の時刻を15分過ぎると、店長の画面のお知らせが赤に変わります。</p></section>`};
+    <p class="sub">お名前・電話番号は登録しません。お客様には予約番号をお伝えします。15分前のお知らせは、店舗の責任者のSlackにも届きます（この試作では送信しません）。予約の時刻を15分過ぎると、店長の画面のお知らせが赤に変わります。</p></section>`};
 },
 resvnew(){
   const f=S.rf;
