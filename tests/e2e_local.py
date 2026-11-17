@@ -31,6 +31,10 @@ async def newpage(b,w,h):
     return pg,errs
 async def saved(pg): await pg.wait_for_function("document.getElementById('net').textContent==='保存済み'",timeout=20000)
 tiles=lambda pg: pg.locator('button.tile:not(.addt)')
+async def hear(pg,age):
+    b=pg.locator(f'[data-k="age"][data-v="{age}"]')
+    if await b.get_attribute('aria-pressed')!='true': await b.click()
+    for k in ['purpose','carrier','lines','net']: await pg.locator(f'[data-k="{k}"]').first.click()
 async def run(b,tag,w,h):
     pg,errs=await newpage(b,w,h)
     async def shot(n):
@@ -42,7 +46,7 @@ async def run(b,tag,w,h):
     await shot('home')
     # full flow
     await tiles(pg).nth(2).click(); await pg.locator('[data-a="recv"]').first.click(); await pg.click('#type-out')
-    await pg.click('[data-k="age"][data-v="70〜74歳"]'); await pg.click('#extra-0'); await pg.click('#sh-done'); await pg.locator('[data-a="pick"]').first.click()
+    await pg.click('[data-k="age"][data-v="70〜74歳"]'); await pg.click('#extra-0'); print(tag,'age only: disabled',await pg.is_disabled('#sh-done'),'|',await pg.text_content('#sh-left')); await hear(pg,'70〜74歳'); print(tag,'all 5: disabled',await pg.is_disabled('#sh-done'),'|',await pg.text_content('#sh-left')); await pg.click('#sh-done'); await pg.locator('[data-a="pick"]').first.click()
     await pg.click('#p-net'); await pg.click('#w-carrier'); await pg.click('#act-est'); await saved(pg)
     await pg.click('#go-back'); print(tag,'back ->',await pg.text_content('#tb-t')); await saved(pg)
     print(tag,'segments after back',admin("select count(*) from visit_segments g join visits v on v.id=g.visit_id where v.ended_at is null"))
@@ -53,7 +57,7 @@ async def run(b,tag,w,h):
     print(tag,'end ->',await pg.text_content('#tb-t'),'tables',await tiles(pg).count())
     # guide skip
     await tiles(pg).nth(2).click(); await pg.locator('[data-a="recv"]').nth(1).click(); await pg.click('#type-in_guide'); print(tag,'guide ->',await pg.text_content('#tb-t')); await pg.click('#serve-end'); await saved(pg)
-    await tiles(pg).nth(2).click(); await pg.locator('[data-a="recv"]').nth(1).click(); await pg.click('#type-in_guide_h'); print(tag,'guide with hearing ->',await pg.text_content('#tb-t'),'| types',await pg.evaluate("9")); await pg.click('#mode-staff'); await pg.click('[data-k="age"][data-v="60〜64歳"]'); await pg.click('#sh-done'); await pg.locator('[data-a="pick"]').first.click(); await pg.click('#serve-end'); await saved(pg)
+    await tiles(pg).nth(2).click(); await pg.locator('[data-a="recv"]').nth(1).click(); await pg.click('#type-in_guide_h'); print(tag,'guide with hearing ->',await pg.text_content('#tb-t'),'| types',await pg.evaluate("9")); await pg.click('#mode-staff'); await hear(pg,'60〜64歳'); await pg.click('#sh-done'); await pg.locator('[data-a="pick"]').first.click(); await pg.click('#serve-end'); await saved(pg)
     # back = void
     n0=admin("select count(*) from visits")
     await tiles(pg).nth(2).click(); await pg.locator('[data-a="recv"]').first.click(); await pg.click('#type-in_meo'); await saved(pg)
@@ -75,7 +79,7 @@ async def run(b,tag,w,h):
     await pg.click('#role-mgr'); await shot('mgr'); print(tag,'mgr kpi',await pg.evaluate("[...document.querySelectorAll('.kpi .v')].map(e=>e.textContent).join('/')"))
     # offline
     await pg.click('#role-staff'); OFF['v']=True
-    await tiles(pg).nth(0).click(); await pg.locator('[data-a="recv"]').first.click(); await pg.click('#type-fix'); await pg.click('[data-k="age"][data-v="30代"]'); await pg.click('#sh-done'); await pg.locator('[data-a="pick"]').first.click(); await pg.click('#p-coat')
+    await tiles(pg).nth(0).click(); await pg.locator('[data-a="recv"]').first.click(); await pg.click('#type-fix'); await hear(pg,'30代'); await pg.click('#sh-done'); await pg.locator('[data-a="pick"]').first.click(); await pg.click('#p-coat')
     await pg.wait_for_timeout(1500); print(tag,'offline msg:',await pg.text_content('#net'),'| screen',await pg.text_content('#tb-t')); await shot('offline')
     OFF['v']=False; await saved(pg)
     print(tag,'after reconnect:',admin("select v.visit_type||' '||v.phase||' h='||(select age_band from visit_hearings h where h.visit_id=v.id)||' prod='||(select count(*) from segment_products sp join visit_segments g on g.id=sp.segment_id where g.visit_id=v.id) from visits v where v.ended_at is null"))
