@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>店舗管理システム 画面試作 デザイン版</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* 配置の考え方: 上に白い題名の帯、その下に青い状況の帯、中央は白い枠の部品を広い余白で並べ、下に青い操作の帯と切り替えのタブ。
+     線は1px、角は小さく、影は使わない。関連するものは近く、別のものは離す。進む操作だけを珊瑚色にする */
+  color-scheme: light;
+  --bg:#f3f5f7; --surface:#ffffff; --tint:#eaf2fb;
+  --ink:#22303d; --ink2:#5b6976; --line:#d4dae1; --off:#e3e7eb;
+  --blue:#2a74c7; --blue-deep:#1f5ea6;
+  --accent:#dd4468;
+  --ok:#1b7d52; --ok-pale:#e6f4ee;
+  --amber:#a66200; --amber-pale:#fdf1dc;
+  --red:#cf3a3a; --red-pale:#fdeaea;
+  --ui:"Noto Sans JP","Hiragino Sans","Yu Gothic UI",sans-serif;
+  --num:"Barlow","Noto Sans JP",sans-serif;
+  --tabs:64px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{height:100%}
+body{min-height:100%}
+body{font-family:var(--ui);font-weight:400;background:var(--bg);color:var(--ink);line-height:1.6;font-size:16px;-webkit-text-size-adjust:100%;padding-bottom:var(--tabs)}
+button{font:inherit;color:inherit;cursor:pointer;border:none;background:none;text-align:inherit}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+h1,h2,h3{font-weight:500;line-height:1.3;text-wrap:balance}
+svg{flex:none}
+.num{font-family:var(--num);font-variant-numeric:tabular-nums}
+
+.topbar{position:sticky;top:0;z-index:5;background:var(--surface);border-bottom:1px solid var(--line);display:grid;grid-template-columns:1fr auto 1fr;align-items:center;min-height:56px;padding:0 20px;gap:12px}
+.topbar h1{font-size:21px;font-weight:400;letter-spacing:.08em}
+.topbar .l{justify-self:start} .topbar .r{justify-self:end;display:flex;gap:16px;align-items:center}
+.link{color:var(--blue);font-size:15px;min-height:44px;display:inline-flex;align-items:center;gap:4px}
+.topbar .clock{color:var(--blue);font-size:16px}
+.demo{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;justify-content:flex-end;padding:6px 20px;background:#fff9e6;border-bottom:1px solid #ecd79a;font-size:12.5px;color:#6b5200}
+.demo button{min-height:32px;padding:2px 12px;border:1px solid #c9a53a;border-radius:4px;background:#fff;font-size:13px}
+
+.band{background:var(--blue);color:#fff;display:flex;flex-wrap:wrap;align-items:center;gap:16px 24px;padding:16px 24px}
+.b-box{border:1px solid rgba(255,255,255,.75);border-radius:4px;min-width:92px;text-align:center}
+.b-box span{display:block;font-size:12.5px;padding:3px 10px;border-bottom:1px solid rgba(255,255,255,.75)}
+.b-box b{display:block;font-family:var(--num);font-weight:400;font-size:26px;line-height:1.5;padding:0 10px}
+.b-main small{display:block;font-size:13px;opacity:.92}
+.b-main strong{font-size:24px;font-weight:400;letter-spacing:.06em}
+.b-right{margin-left:auto;display:flex;align-items:center;gap:20px}
+.b-stat{text-align:right;line-height:1.2}
+.b-stat b{font-family:var(--num);font-weight:300;font-size:40px}
+.b-stat small{display:block;font-size:12.5px;opacity:.92}
+.b-alert{position:relative;border:1px solid rgba(255,255,255,.75);border-radius:4px;min-height:48px;padding:8px 16px;font-size:14px;display:inline-flex;align-items:center}
+.b-alert i{position:absolute;top:-12px;right:-12px;min-width:26px;height:26px;border-radius:13px;background:var(--accent);font-style:normal;font-family:var(--num);font-weight:500;font-size:15px;display:grid;place-items:center;padding:0 6px}
+.crumbs{display:flex;flex-wrap:wrap;gap:4px 10px;padding:12px 24px 0;font-size:13px;color:var(--ink2)}
+.crumbs b{color:var(--blue);font-weight:700}
+
+main{padding:24px 24px 40px;display:flex;flex-direction:column;gap:32px;max-width:1200px;width:100%;margin:0 auto}
+.sec{display:flex;flex-direction:column;gap:12px}
+.sec>h2,.box>h2,.sec>.row>h2{font-size:15px;font-weight:700;letter-spacing:.06em;color:var(--ink)}
+.sub{color:var(--ink2);font-size:13.5px}
+.row{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.between{justify-content:space-between}
+.grid{display:grid;gap:12px}
+.g3{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}
+.g2{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+.box{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:20px 24px;display:flex;flex-direction:column;gap:16px}
+
+.btn{min-height:52px;padding:10px 24px;border-radius:4px;font-size:16px;font-weight:500;letter-spacing:.04em;background:var(--accent);color:#fff;display:inline-flex;align-items:center;justify-content:center;gap:8px;text-align:center}
+.btn.blue{background:var(--blue)}
+.btn.line{background:var(--surface);color:var(--blue);border:1px solid var(--blue)}
+.btn.onblue{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.8)}
+.btn.s{min-height:44px;padding:6px 16px;font-size:15px}
+.btn[disabled]{background:var(--off);color:#8b96a1;border-color:var(--off);cursor:not-allowed}
+
+.person{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:12px 14px;display:flex;align-items:center;gap:12px;position:relative;min-height:72px}
+.ava{width:42px;height:42px;border-radius:50%;border:1px solid var(--blue);color:var(--blue);display:grid;place-items:center;font-size:17px}
+.person.off .ava{border-color:var(--line);color:var(--ink2)}
+.person .nm{font-size:17px;font-weight:500;line-height:1.3}
+.person .st{font-size:12.5px;color:var(--ink2)}
+.person .btn{margin-left:auto}
+.badge{position:absolute;top:-10px;left:36px;background:var(--accent);color:#fff;font-size:11.5px;font-weight:500;border-radius:12px;padding:1px 9px}
+.person.add{justify-content:center;color:var(--blue);border-style:dashed;gap:8px;width:100%}
+
+.tile{width:100%;background:var(--surface);border:1px solid var(--line);border-radius:6px;overflow:hidden;display:flex;flex-direction:column;min-height:190px}
+.tile .hd{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 14px;background:var(--off);color:var(--ink);font-size:13.5px}
+.tile .hd b{font-family:var(--num);font-weight:400;font-size:22px;margin-left:4px}
+.tile .bd{padding:16px 14px;display:flex;flex-direction:column;gap:12px;flex:1}
+.tile .mid{display:flex;align-items:center;gap:12px}
+.tile .big{font-family:var(--num);font-weight:300;font-size:56px;line-height:.9;color:var(--blue)}
+.tile .big small{font-family:var(--ui);font-size:14px;font-weight:400;color:var(--ink2);margin-left:4px}
+.tile .cap{font-size:12.5px;color:var(--ink2)}
+.tile .who{font-size:13.5px;color:var(--ink);margin-top:auto;line-height:1.5}
+.tile .who span{color:var(--ink2)}
+.tile.recv .hd{background:var(--tint);color:var(--blue-deep)}
+.tile.serve .hd{background:var(--blue);color:#fff}
+.tile.proc .hd{background:var(--amber);color:#fff} .tile.proc .big,.tile.proc .ring{color:var(--amber)}
+.tile.won .hd{background:var(--ok);color:#fff} .tile.won .big{color:var(--ok)}
+.tile.crit{border-color:var(--red)} .tile.crit .hd{background:var(--red);color:#fff} .tile.crit .big,.tile.crit .ring{color:var(--red)}
+.tile.empty .bd{justify-content:center;align-items:center;color:var(--blue);font-size:15px}
+.tile.rsv .hd{background:var(--blue-deep);color:#fff}
+.tile.rsv .big{font-size:46px;line-height:1}
+.tile.addt{align-items:center;justify-content:center;border-style:dashed;color:var(--blue);gap:8px;font-size:15px;background:transparent}
+button.tile:hover,.pickc:hover{border-color:var(--blue)}
+.ring{transform:rotate(-90deg)}
+.ring .tr{stroke:currentColor;opacity:.18;fill:none}
+.ring .pr{stroke:currentColor;fill:none}
+
+.pickc{width:100%;min-height:92px;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:16px 18px;display:flex;align-items:center;gap:14px}
+.pickc b{display:block;font-size:18px;font-weight:500;line-height:1.4}
+.pickc .d{font-size:13.5px;color:var(--blue)}
+.pickc .kind{margin-left:auto;font-size:12px;border:1px solid var(--line);border-radius:3px;padding:1px 8px;color:var(--ink2);white-space:nowrap}
+.pickc.keep{border:2px solid var(--blue);background:var(--tint)}
+
+.memo{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-size:15px}
+.memo dt{color:var(--ink2);font-size:13.5px} .memo dd{font-weight:500}
+.sug{border:1px solid #bcd5ee;background:var(--tint);border-radius:4px;padding:12px 14px}
+.sug b{display:block;font-size:16.5px;font-weight:500;color:var(--blue-deep)}
+.cl-row{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--line)}
+.cl-row:first-child{border-top:1px solid var(--line)}
+.cl-name{flex:1 1 190px;font-size:17px}
+.seg{display:flex;gap:8px}
+.tg{min-width:116px;min-height:46px;border:1px solid var(--blue);border-radius:4px;background:var(--surface);color:var(--blue);font-size:15px;padding:4px 12px;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.tg i{width:18px;height:18px;border-radius:50%;border:1px solid currentColor;display:grid;place-items:center;font-style:normal}
+.tg i svg{opacity:0}
+.tg[aria-pressed="true"]{background:var(--blue);color:#fff}
+.tg[aria-pressed="true"] i svg{opacity:1}
+.tg.b{border-color:var(--ok);color:var(--ok)}
+.tg.b[aria-pressed="true"]{background:var(--ok);color:#fff}
+.tg.auto{min-width:0}
+
+#act{position:sticky;bottom:var(--tabs);z-index:4}
+.action{background:var(--blue);color:#fff;display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px;padding:14px 24px}
+.action .sum{display:flex;gap:20px;align-items:baseline;font-size:14px;margin-right:auto}
+.action .sum b{font-family:var(--num);font-weight:300;font-size:34px;margin-left:6px}
+
+.timer{display:flex;align-items:center;gap:16px;color:var(--blue)}
+.timer .big{font-family:var(--num);font-weight:300;font-size:54px;line-height:1}
+.timer .u{font-size:14px;color:var(--ink2);margin-left:4px}
+.timer.over{color:var(--red)} .timer.done{color:var(--ok)}
+
+.alert{display:flex;gap:14px;align-items:center;border:1px solid var(--red);background:var(--red-pale);border-radius:4px;padding:12px 16px}
+.alert.w{border-color:#d9a650;background:var(--amber-pale)}
+.alert .ic{width:34px;height:34px;border-radius:50%;background:var(--red);color:#fff;display:grid;place-items:center;font-family:var(--num);font-weight:500;font-size:19px;flex:none}
+.alert.w .ic{background:var(--amber)}
+.alert b{display:block;font-size:16.5px;font-weight:500}
+.alert span{font-size:13.5px;color:var(--ink2)}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--line);border-radius:4px}
+.kpi{padding:16px 18px;border-left:1px solid var(--line)} .kpi:first-child{border-left:none}
+.kpi .v{font-family:var(--num);font-weight:300;font-size:54px;line-height:1;color:var(--blue)}
+.kpi .l{font-size:13px;color:var(--ink2);margin-top:6px}
+table{width:100%;border-collapse:collapse}
+th,td{padding:10px 8px;border-bottom:1px solid var(--line);text-align:left;font-size:15px}
+th{font-size:12.5px;color:var(--ink2);font-weight:400}
+td.n{text-align:right;font-family:var(--num);font-size:19px;color:var(--blue)} th.n{text-align:right}
+.scroll{overflow-x:auto}
+.pb{display:grid;grid-template-columns:minmax(120px,200px) 1fr auto;gap:10px 14px;align-items:center;font-size:14px}
+.pb .bars{display:flex;flex-direction:column;gap:3px}
+.pb .b1,.pb .b2{height:6px;border-radius:3px;min-width:2px}
+.pb .b1{background:var(--blue)} .pb .b2{background:var(--ok)}
+.pb .v{font-family:var(--num);font-size:15px;color:var(--ink2)}
+.legend{display:flex;gap:16px;font-size:12.5px;color:var(--ink2)}
+.legend i{display:inline-block;width:14px;height:6px;border-radius:3px;margin-right:6px;vertical-align:middle}
+.feed{display:flex;gap:16px;align-items:baseline;padding:10px 0;border-bottom:1px solid var(--line)}
+.feed:first-child{border-top:1px solid var(--line)}
+.feed .t{font-family:var(--num);font-size:17px;color:var(--blue)}
+.pill{display:inline-flex;align-items:baseline;gap:8px;border:1px solid var(--line);border-radius:4px;padding:6px 14px;font-size:14px;background:var(--surface)}
+.pill b{font-family:var(--num);font-weight:400;font-size:22px;color:var(--blue)}
+
+.tabs{position:fixed;left:0;right:0;bottom:0;height:var(--tabs);z-index:5;background:var(--surface);border-top:1px solid var(--line);display:flex;justify-content:center;gap:8px}
+.tab{flex:0 1 200px;display:flex;align-items:center;justify-content:center;gap:10px;font-size:14.5px;color:var(--ink2)}
+.tab[aria-pressed="true"]{color:var(--blue);font-weight:500;box-shadow:inset 0 3px 0 var(--blue)}
+
+.rv{display:grid;grid-template-columns:76px 1fr auto;gap:4px 16px;align-items:center;padding:14px 0;border-bottom:1px solid var(--line)}
+.rv:first-child{border-top:1px solid var(--line)}
+.rv .t{font-family:var(--num);font-weight:300;font-size:30px;line-height:1;color:var(--blue)}
+.rv .t small{display:block;font-family:var(--ui);font-size:12px;font-weight:400;color:var(--ink2);margin-top:4px}
+.rv .w b{display:block;font-size:16.5px;font-weight:500}
+.rv .w span{font-size:13px;color:var(--ink2)}
+.rv .x{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:flex-end}
+.chip{font-size:12.5px;border:1px solid var(--line);border-radius:3px;padding:2px 10px;color:var(--ink2);white-space:nowrap;background:var(--surface)}
+.chip.seated{border-color:var(--blue-deep);color:var(--blue-deep);background:var(--tint)}
+.chip.arrived{border-color:var(--blue);color:#fff;background:var(--blue)}
+.chip.done{border-color:var(--ok);color:var(--ok)}
+.chip.noshow{border-color:var(--red);color:var(--red)}
+.err{color:var(--red);font-size:14px}
+input[type=date],input[type=time]{font:inherit;min-height:50px;border:1px solid var(--line);border-radius:4px;padding:8px 14px;background:#fff;color:var(--ink);width:100%}
+body.cust-mode{background:var(--surface);padding-bottom:0}
+body.cust-mode .tabs{display:none}
+body.cust-mode main{max-width:920px;gap:28px;padding-top:28px}
+.paper{display:flex;flex-direction:column;gap:28px;font-weight:500}
+.paper .lead{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:15px;color:var(--ink2);font-weight:400}
+.paper h2{font-size:clamp(27px,5vw,38px);font-weight:500;line-height:1.4;letter-spacing:.04em}
+.prog{height:4px;background:var(--off)} .prog i{display:block;height:100%;background:var(--blue)}
+.opts{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(214px,1fr))}
+.opt{min-height:84px;border:1px solid var(--blue);border-radius:6px;background:var(--surface);color:var(--blue-deep);font-size:23px;font-weight:500;padding:12px 16px;display:flex;align-items:center;justify-content:center;text-align:center}
+.opt[aria-pressed="true"]{background:var(--blue);color:#fff}
+.five{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.five .opt{font-family:var(--num);font-weight:400;font-size:34px;min-height:76px}
+.paper .btn{min-height:64px;font-size:20px;padding:12px 32px}
+
+input[type=text],select{font:inherit;min-height:50px;border:1px solid var(--line);border-radius:4px;padding:8px 14px;background:#fff;color:var(--ink);width:100%}
+label{font-size:14px;color:var(--ink2);display:flex;flex-direction:column;gap:6px}
+
+@media (max-width:760px){
+  .topbar{padding:0 12px;grid-template-columns:auto 1fr auto} .topbar h1{font-size:18px;text-align:center}
+  .topbar .clock{display:none}
+  .band{padding:14px 16px;gap:12px 16px} .b-main strong{font-size:19px} .b-stat b{font-size:32px}
+  .crumbs{padding:10px 16px 0}
+  main{padding:20px 16px 32px;gap:28px}
+  .box{padding:16px}
+  .seg{width:100%} .seg .tg{flex:1;min-width:0}
+  .action{padding:10px 16px;gap:8px 10px} .action .btn{flex:1 1 40%;min-height:46px;padding:6px 12px} .action .btn:last-child{flex:1 1 100%;min-height:50px} .action .sum{width:100%} .action .sum b{font-size:26px}
+  .paper .btn{flex:1}
+  .opts{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px} .opt{font-size:19px;min-height:72px;padding:10px 8px}
+  .kpi .v{font-size:40px} .kpi{padding:12px}
+  .pb{grid-template-columns:1fr auto} .pb>span:nth-child(3n+1){grid-column:1/-1;margin-bottom:-6px}
+  .tab{flex:1;flex-direction:column;gap:2px;font-size:12.5px}
+  .rv{grid-template-columns:64px 1fr} .rv .x{grid-column:1/-1;justify-content:flex-start} .rv .t{font-size:26px}
+}
+@media (prefers-reduced-motion:no-preference){
+  .btn,.tg,.opt,.pickc,.tile,.tab{transition:background .12s ease,border-color .12s ease,color .12s ease}
+  .ring .pr{transition:stroke-dashoffset .5s ease}
+}
+</style>
+</head>
+<body>
+<header class="topbar"><div class="l" id="tb-l"></div><h1 id="tb-t"></h1><div class="r" id="tb-r"></div></header>
+<div class="demo"><span>試作用の操作（見本データ）</span><button id="demo-plus" data-a="plus">10分進める</button><button id="demo-reset" data-a="reset">最初に戻す</button></div>
+<div id="band"></div>
+<main id="app"></main>
+<div id="act"></div>
+<nav class="tabs" aria-label="画面の切り替え">
+  <button class="tab" id="role-staff" data-a="tab" data-v="staff"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7"/><rect x="13.5" y="3.5" width="7" height="7"/><rect x="3.5" y="13.5" width="7" height="7"/><rect x="13.5" y="13.5" width="7" height="7"/></svg>卓のiPad</button>
+  <button class="tab" id="role-resv" data-a="tab" data-v="resv"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="3.5" y="5.5" width="17" height="15"/><path d="M3.5 10h17M8 3v4.5M16 3v4.5"/></svg>予約</button>
+  <button class="tab" id="role-mgr" data-a="tab" data-v="mgr"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M4.5 20V10.5M10.5 20V4.5M16.5 20v-7M2.5 20h19"/></svg>店長</button>
+</nav>
+<script>
+'use strict';
+const TYPES=[
+ {k:'in_guide',n:'インバウンド 操作説明',d:'サポート会員の操作説明。ヒアリングなしで始められます',g:'来店',inbound:true,skip:true},
+ {k:'in_meo',n:'インバウンド MEO広告',d:'地図の検索や広告を見て来店した、新しいお客様',g:'来店',inbound:true},
+ {k:'in_req',n:'インバウンド（要件あり）',d:'プラン変更・料金収納など、用件が決まっている来店',g:'来店',inbound:true},
+ {k:'in',n:'インバウンド',d:'上の3つに当てはまらない来店',g:'来店',inbound:true},
+ {k:'out',n:'アウトバウンド',d:'店の外での声掛けから着席',g:'声掛け'},
+ {k:'fix',n:'什器付き',d:'什器での声掛けから着席',g:'声掛け'},
+ {k:'event',n:'イベント',d:'イベント会場での接客',g:'声掛け'},
+ {k:'revisit',n:'見込再来店',d:'以前に見込みだったお客様の再来店',g:'再来店'}];
+const QS=[
+ {k:'age',s:'年代',q:'年代を教えてください',o:['10代','20代','30代','40代','50代','60〜64歳','65〜69歳','70〜74歳','75〜79歳','80〜84歳','85歳以上']},
+ {k:'purpose',s:'ご用件',q:'今日のご用件は何ですか',o:['機種変更・乗り換えの相談','料金の見直し','使い方を知りたい','修理・故障','その他']},
+ {k:'carrier',s:'携帯',q:'今お使いの携帯会社はどちらですか',o:['ソフトバンク','ワイモバイル','ドコモ','au','UQモバイル','楽天モバイル','その他・分からない']},
+ {k:'lines',s:'ご家族',q:'ご家族で何台お使いですか',o:['1台','2台','3台','4台以上']},
+ {k:'net',s:'自宅のネット',q:'ご自宅のインターネットはどうされていますか',o:['光回線がある','置くだけのWi-Fiがある','ない','分からない']}];
+const PRODS=[
+ {k:'carrier',n:'携帯（SB／YM／UQ／ERA）'},{k:'net',n:'自宅のインターネット'},{k:'support',n:'店頭サポート（保証込み）'},
+ {k:'security',n:'セキュリティ・広告ブロック'},{k:'used',n:'中古・新古スマホ'},{k:'coat',n:'コーティング・カバー'},
+ {k:'energy',n:'電気・ガス'},{k:'water',n:'ウォーターサーバー'},{k:'repair',n:'スマホ・PC修理'}];
+const ACTS=[{k:'est',n:'見積書お渡し'},{k:'card',n:'名刺お渡し'},{k:'pros',n:'見込み登録'}];
+const EXTRA=['景品プレゼント','アンケート'];
+const COMPANIES=['見本A社','見本B社','見本C社','その他（会社名を入力）'];
+const SENIOR=['65〜69歳','70〜74歳','75〜79歳','80〜84歳','85歳以上'];
+const STEPS=['受付','来店区分','ヒアリング','接客','手続き','アンケート'];
+const CUST=['cust','custdone','survey','thanks'];
+const RSCREEN=['resv','resvnew'];
+const RST={booked:'予約中',seated:'席を用意済み',arrived:'来店・接客中',done:'完了',cancel:'取消',noshow:'来店なし'};
+const LEAD=15; /* 予約の何分前に席を用意して知らせるか */
+const CHK='<i><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12.5l5 5L20 6.5"/></svg></i>';
+const CHEV='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>';
+const BACK='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>';
+const PLUS='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="M12 7.5v9M7.5 12h9"/></svg>';
+
+let S, skew=0;
+const M=60000;
+const now=()=>Date.now()+skew;
+const mins=t=>Math.max(0,Math.floor((now()-t)/M));
+const hm=t=>{const d=new Date(t);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function init(){
+  skew=0; const t=Date.now();
+  S={role:'staff',screen:'home',tid:null,step:0,draft:null,vid:100,surveys:7,hist:[],recvId:null,changing:false,afterPick:false,
+   staff:[
+    {id:1,name:'青山',kind:'責任者',shift:t-190*M,inAt:t-195*M},
+    {id:2,name:'森',kind:'スタッフ',shift:t-190*M,inAt:t-192*M},
+    {id:3,name:'河野',kind:'スタッフ',shift:t-12*M,inAt:null},
+    {id:4,name:'石田',kind:'スタッフ',shift:t-130*M,inAt:t-133*M}],
+   tables:[
+    {id:1,name:'卓1',v:{id:91,recv:2,type:'in',at:t-22*M,phase:'serving',by:'customer',
+      h:{age:'65〜69歳',purpose:'料金の見直し',carrier:'ドコモ',lines:'2台',net:'ない',extra:[]},
+      segs:[{sid:2,p:['carrier'],w:[],a:[],stage:'serve'}],setup:{},move:{}}},
+    {id:2,name:'卓2',v:{id:92,recv:1,type:'in_meo',at:t-71*M,phase:'after',by:'customer',result:'won',
+      h:{age:'40代',purpose:'機種変更・乗り換えの相談',carrier:'au',lines:'3台',net:'光回線がある',extra:[]},
+      segs:[{sid:1,p:['carrier','support','coat'],w:['carrier','coat'],a:['card'],stage:'serve'},{sid:4,p:['security'],w:[],a:[],stage:'after'}],
+      setup:{s:t-34*M},move:{}}},
+    {id:3,name:'卓3',v:null}],
+   closed:[
+    {type:'in_guide',result:'lost',segs:[{sid:2,p:[],w:[],a:[]}]},
+    {type:'in_req',result:'lost',segs:[{sid:4,p:['support'],w:[],a:['est','pros']}]},
+    {type:'out',result:'won',segs:[{sid:2,p:['carrier','net'],w:['carrier'],a:[]}]},
+    {type:'in',result:'won',segs:[{sid:1,p:['carrier','support','security'],w:['carrier','support'],a:[]}]},
+    {type:'fix',result:'lost',segs:[{sid:4,p:['carrier'],w:[],a:[]}]}],
+   feed:[{at:t-22*M,text:'卓1　65〜69歳　ご用件：料金の見直し'},{at:t-71*M,text:'卓2　40代　ご用件：機種変更・乗り換えの相談'}],
+   help:{kind:'イベント応援',co:COMPANIES[0],name:''},
+   rno:1043, rf:null, rfErr:'',
+   resv:[
+    {id:1,no:'R-1041',at:t+25*M,purpose:'機種変更・乗り換えの相談',staff:2,st:'booked',tid:null},
+    {id:2,no:'R-1042',at:t+95*M,purpose:'使い方を知りたい',staff:null,st:'booked',tid:null},
+    {id:3,no:'R-1040',at:t-150*M,purpose:'料金の見直し',staff:1,st:'done',tid:null}]};
+}
+const RV=id=>S.resv.find(r=>r.id===id);
+const ymd=t=>{const d=new Date(t);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+const dayLabel=t=>{const a=ymd(t),b=ymd(now());if(a===b)return '本日';const d=new Date(t);return (d.getMonth()+1)+'/'+d.getDate()};
+/* 予約の15分前になったら、卓を1つ自動で用意する */
+function syncResv(){
+  S.resv.forEach(r=>{ if(r.st==='booked'&&now()>=r.at-LEAD*M){
+    const id=Math.max(...S.tables.map(t=>t.id))+1;
+    S.tables.push({id,name:'卓'+id,v:null,auto:true,rid:r.id}); r.st='seated'; r.tid=id; }});
+}
+function dropAutoTable(r){ const t=S.tables.find(x=>x.id===r.tid); if(t&&t.auto&&!t.v) S.tables=S.tables.filter(x=>x!==t); r.tid=null; }
+const rwait=r=>Math.ceil((r.at-now())/M);
+const rwhen=r=>{const d=rwait(r);return d>0?`あと${d}分`:d===0?'予約の時刻です':`予約時刻を${-d}分過ぎています`};
+const T=()=>S.tables.find(x=>x.id===S.tid);
+const V=()=>T()&&T().v;
+const staffName=id=>{const s=S.staff.find(x=>x.id===id);return s?s.name:'—'};
+const typeOf=k=>TYPES.find(x=>x.k===k);
+const onDuty=()=>S.staff.filter(s=>s.inAt);
+const seg=v=>v.segs[v.segs.length-1];
+const prod=k=>PRODS.find(p=>p.k===k).n;
+const tnum=t=>t.name.replace('卓','');
+
+function alerts(){
+  const a=[];
+  S.staff.forEach(s=>{ if(!s.inAt){const m=mins(s.shift); if(m>=5) a.push({lv:'crit',t:`出勤ボタンが押されていません：${s.name}さん`,d:`シフト開始 ${hm(s.shift)}（${m}分経過）。本人が出勤ボタンを押すと消えます。`});}});
+  S.resv.forEach(r=>{ if(r.st!=='seated') return; const d=rwait(r), tb=S.tables.find(x=>x.id===r.tid), who=r.staff?staffName(r.staff)+'さん':'未定';
+    const tail=`${tb?tb.name+'を用意しました。':''}担当：${who}。受付を始めると消えます。`;
+    if(d>0) a.push({lv:'warn',tid:r.tid,t:`予約の${LEAD}分前です：${hm(r.at)}　${r.purpose}`,d:`あと${d}分。${tail}`});
+    else if(d>-15) a.push({lv:'warn',tid:r.tid,t:`予約の時刻です：${hm(r.at)}　${r.purpose}`,d:tail});
+    else a.push({lv:'crit',tid:r.tid,t:`予約時刻を${-d}分過ぎています：${hm(r.at)}　${r.purpose}`,d:`担当：${who}。来店されない場合は、予約の画面で「来店なし」にすると消えます。`});
+  });
+  S.tables.forEach(t=>{const v=t.v;if(!v)return;
+    [['setup','顧客登録'],['move','データ移行']].forEach(([k,n])=>{const x=v[k];
+      if(x.s&&!x.e){const m=mins(x.s); if(m>=30){const nth=Math.floor((m-30)/15)+1;
+        a.push({lv:m>=45?'crit':'warn',tid:t.id,t:`${t.name}　${n}に${m}分経過`,d:`${nth}回目のお知らせ（30分から15分ごと）。完了ボタンが押されると消えます。担当：${staffName(seg(v).sid)}さん`});}}});
+  });
+  return a;
+}
+function tableState(t){
+  const v=t.v; if(!v) return {k:'empty',l:'空き'};
+  if(v.phase==='hearing') return {k:'recv',l:'ヒアリング中'};
+  if(v.phase==='ready') return {k:'recv',l:'接客開始待ち'};
+  if(v.phase==='serving') return {k:'serve',l:'接客中'};
+  if(v.setup.s&&!v.setup.e) return {k:'proc',l:'顧客登録中',since:v.setup.s,cap:'顧客登録の経過'};
+  if(v.move.s&&!v.move.e) return {k:'proc',l:'データ移行中',since:v.move.s,cap:'データ移行の経過'};
+  return {k:'won',l:'成約・手続き'};
+}
+function suggest(h){
+  if(!h) return null; const out=[];
+  const many=['2台','3台','4台以上'].includes(h.lines);
+  if(many||['機種変更・乗り換えの相談','料金の見直し'].includes(h.purpose))
+    out.push({k:'carrier',r:many?`ご家族で${h.lines}お使いです。まとめて見直すと月々の料金が下がるかを確認できます。`:'ご用件が料金・機種のご相談です。今より安くなる場合だけご案内します。'});
+  if(['ない','置くだけのWi-Fiがある'].includes(h.net)) out.push({k:'net',r:'ご自宅に光回線が無いとお答えです。スマホとのセット割引の対象かを確認できます。'});
+  if(SENIOR.includes(h.age)||h.purpose==='使い方を知りたい') out.push({k:'support',r:'操作のご相談と、故障したときの保証をまとめて受けられます。'});
+  if(h.purpose==='修理・故障'){out.push({k:'repair',r:'ご用件が修理・故障です。まず修理の見積りをお出しします。'});out.push({k:'used',r:'修理より買い替えのほうが安い場合の選択肢です。'});}
+  return out;
+}
+function ring(m,limit,size){
+  const r=size/2-3, c=2*Math.PI*r, p=Math.min(1,m/limit);
+  return `<svg class="ring" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" aria-hidden="true"><circle class="tr" cx="${size/2}" cy="${size/2}" r="${r}" stroke-width="3"/><circle class="pr" cx="${size/2}" cy="${size/2}" r="${r}" stroke-width="3" stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${(c*(1-p)).toFixed(1)}"/></svg>`;
+}
+function tile(t,mini){
+  const st=tableState(t), v=t.v, al=alerts().filter(x=>x.tid===t.id);
+  const r=!v&&t.auto?RV(t.rid):null;
+  const cls=r?(al.some(a=>a.lv==='crit')?'crit':'rsv'):!v?'empty':al.some(a=>a.lv==='crit')?'crit':st.k;
+  const inner=r?`<span class="hd"><span>卓<b>${esc(tnum(t))}</b></span><span>予約席</span></span>
+    <span class="bd"><span><span class="big">${hm(r.at)}</span><br><span class="cap">${rwhen(r)}</span></span>
+      <span class="who">${esc(r.purpose)}<br><span>担当</span> ${r.staff?esc(staffName(r.staff)):'未定'}　<span>予約番号</span> ${esc(r.no)}</span>
+      ${mini?'':'<span style="color:var(--blue);font-size:14px">来店されたらタップして受付</span>'}</span>`:`<span class="hd"><span>卓<b>${esc(tnum(t))}</b></span><span>${st.l}</span></span>
+    <span class="bd">${v?`<span class="mid">${st.since?ring(mins(st.since),30,54):''}<span><span class="big">${st.since?mins(st.since):mins(v.at)}<small>分</small></span><br><span class="cap">${st.cap||'来店から'}</span></span></span>
+      <span class="who">${esc(typeOf(v.type).n)}<br><span>受付</span> ${esc(staffName(v.recv))}　<span>担当</span> ${v.segs.length?esc(staffName(seg(v).sid)):'未定'}</span>`
+    :`<span>${mini?'空いています':'受付を始める'}</span>`}</span>`;
+  return mini?`<div class="tile ${cls}">${inner}</div>`:`<button class="tile ${cls}" id="table-${t.id}" data-a="table" data-id="${t.id}">${inner}</button>`;
+}
+function stepIndex(){
+  const sc=S.screen;
+  if(sc==='recv') return 0; if(sc==='type') return 1;
+  if(['mode','cust','custdone','staffhear'].includes(sc)) return 2;
+  if(sc==='pick') return S.afterPick?4:3; if(sc==='serve') return 3;
+  if(sc==='after') return 4; return 5;
+}
+const crumbs=()=>{const i=stepIndex();return `<div class="crumbs" aria-label="進み具合">${STEPS.map((s,n)=>(n===i?`<b>${s}</b>`:`<span>${s}</span>`)+(n<STEPS.length-1?'<span aria-hidden="true">›</span>':'')).join('')}</div>`};
+function ctxBand(){
+  const t=T(), v=t.v, rid=v?v.recv:S.recvId;
+  const right=v?`<div class="b-right"><div class="b-stat"><b>${mins(v.at)}</b> 分<small>来店から</small></div></div>`:'';
+  return `<div class="band"><div class="b-box"><span>卓</span><b>${esc(tnum(t))}</b></div>
+    <div class="b-main"><small>受付 ${rid?esc(staffName(rid))+'さん':'未選択'}${v&&v.segs.length?'　担当 '+esc(staffName(seg(v).sid))+'さん':''}</small><strong>${v?esc(typeOf(v.type).n):'受付'}</strong></div>${right}</div>${crumbs()}`;
+}
+function resvNote(){
+  const t=T(), rid=t.v?t.v.rid:t.rid, r=rid?RV(rid):null; if(!r) return '';
+  return `<section class="box" style="gap:10px"><h2>ご予約のお客様</h2>
+    <div class="row between"><span><span class="num" style="font-size:26px;color:var(--blue)">${hm(r.at)}</span>　${esc(r.purpose)}　<span class="sub">担当 ${r.staff?esc(staffName(r.staff))+'さん':'未定'}／予約番号 ${esc(r.no)}</span></span>
+    ${t.v?'':`<button class="btn line s" id="resv-noshow" data-a="noshow" data-id="${r.id}">来店なしにする</button>`}</div></section>`;
+}
+function checklist(v,sg,after){
+  const list=PRODS.filter(p=>!(after&&p.k==='carrier'));
+  return `<div>${list.map(p=>`<div class="cl-row"><div class="cl-name">${p.n}</div>
+      <div class="seg"><button class="tg a" id="p-${p.k}" aria-pressed="${sg.p.includes(p.k)}" data-a="prop" data-v="${p.k}">${CHK}提案した</button>
+      <button class="tg b" id="w-${p.k}" aria-pressed="${sg.w.includes(p.k)}" data-a="win" data-v="${p.k}">${CHK}獲得した</button></div></div>`).join('')}</div>
+    <div class="sec" style="gap:10px"><h2>お渡し・見込み</h2>
+    <div class="row">${ACTS.map(a=>`<button class="tg a auto" id="act-${a.k}" aria-pressed="${(sg.a||[]).includes(a.k)}" data-a="act" data-v="${a.k}">${CHK}${a.n}</button>`).join('')}</div></div>`;
+}
+
+function resvRow(r,withAct){
+  const act=withAct&&['booked','seated'].includes(r.st)?`${r.st==='seated'&&rwait(r)<=0?`<button class="btn line s" id="rv-noshow-${r.id}" data-a="noshow" data-id="${r.id}">来店なし</button>`:''}<button class="btn line s" id="rv-cancel-${r.id}" data-a="rcancel" data-id="${r.id}">取り消す</button>`:'';
+  return `<div class="rv"><div class="t">${hm(r.at)}<small>${dayLabel(r.at)}</small></div>
+    <div class="w"><b>${esc(r.purpose)}</b><span>担当 ${r.staff?esc(staffName(r.staff))+'さん':'未定'}　予約番号 ${esc(r.no)}${r.st==='seated'?'　'+rwhen(r):''}</span></div>
+    <div class="x"><span class="chip ${r.st}">${RST[r.st]}</span>${act}</div></div>`;
+}
+const views={
+resv(){
+  const list=[...S.resv].sort((a,b)=>a.at-b.at), open=list.filter(r=>['booked','seated'].includes(r.st)).length;
+  const band=`<div class="band"><div class="b-box"><span>店舗</span><b style="font-family:var(--ui);font-size:19px;line-height:2">見本店</b></div>
+    <div class="b-main"><small>予約の管理</small><strong>${LEAD}分前に卓を用意してお知らせします</strong></div>
+    <div class="b-right"><div class="b-stat"><b>${open}</b> 件<small>これからの予約</small></div></div></div>`;
+  return {t:'予約',band,body:`<section class="sec"><div class="row between"><h2>予約の一覧</h2><button class="btn s" id="resv-new" data-a="rnew">予約を登録${CHEV}</button></div>
+    <div>${list.map(r=>resvRow(r,true)).join('')}</div>
+    <p class="sub">お名前・電話番号は登録しません。お客様には予約番号をお伝えします。15分前のお知らせは、担当スタッフと店舗の責任者のSlackにも届きます（この試作では送信しません）。予約の時刻を15分過ぎると、店長の画面のお知らせが赤に変わります。</p></section>`};
+},
+resvnew(){
+  const f=S.rf;
+  return {t:'予約の登録',band:'',body:`<section class="box" style="max-width:560px"><h2>予約の内容を選びます</h2>
+    <label for="rf-date">来店日<input type="date" id="rf-date" data-g="rf" data-f="date" value="${f.date}"></label>
+    <label for="rf-time">来店時刻<input type="time" id="rf-time" step="300" data-g="rf" data-f="time" value="${f.time}"></label>
+    <label for="rf-purpose">ご用件<select id="rf-purpose" data-g="rf" data-f="purpose">${QS[1].o.map(o=>`<option ${o===f.purpose?'selected':''}>${o}</option>`).join('')}</select></label>
+    <label for="rf-staff">担当スタッフ（決まっていれば）<select id="rf-staff" data-g="rf" data-f="staff"><option value="">未定</option>${S.staff.map(s=>`<option value="${s.id}" ${String(s.id)===String(f.staff)?'selected':''}>${esc(s.name)}</option>`).join('')}</select></label>
+    ${S.rfErr?`<p class="err" id="rf-err">${esc(S.rfErr)}</p>`:''}
+    <p class="sub">お名前・電話番号の欄はありません。登録すると予約番号が出ます。</p>
+    <div><button class="btn" id="rf-save" data-a="rsave">この内容で登録する${CHEV}</button></div></section>`};
+},
+home(){
+  const al=alerts(), busy=S.tables.filter(t=>t.v).length;
+  const band=`<div class="band"><div class="b-box"><span>店舗</span><b style="font-family:var(--ui);font-size:19px;line-height:2">見本店</b></div>
+    <div class="b-main"><small>本日の状況</small><strong>卓を選んで受付を始めます</strong></div>
+    <div class="b-right"><div class="b-stat"><b>${busy}</b> ／ ${S.tables.length} 卓<small>使用中</small></div>
+    ${al.length?`<button class="b-alert" id="to-mgr" data-a="role" data-v="mgr">確認が必要<i>${al.length}</i></button>`:''}</div></div>`;
+  const body=`
+  <section class="sec"><div class="row between"><h2>出勤</h2><span class="sub">出勤したら、自分の名前の「出勤」を押します</span></div>
+    <div class="grid g3">${[...S.staff].sort((a,b)=>(a.inAt?1:0)-(b.inAt?1:0)).map(s=>{const late=!s.inAt&&mins(s.shift)>=5;return `<div class="person ${s.inAt?'':'off'}">
+      ${late?`<span class="badge">開始から${mins(s.shift)}分</span>`:''}<span class="ava">${esc(s.name[0])}</span><span><span class="nm">${esc(s.name)}</span><br><span class="st">${s.inAt?'出勤 '+hm(s.inAt):esc(s.kind)}</span></span>
+      ${s.inAt?'':`<button class="btn blue s" id="in-${s.id}" data-a="clockin" data-id="${s.id}">出勤</button>`}</div>`}).join('')}
+      <button class="person add" id="add-help" data-a="go" data-v="help">${PLUS}応援スタッフを追加</button></div></section>
+  <section class="sec"><div class="row between"><h2>卓</h2>${S.tables.some(t=>!t.v&&!t.auto)&&S.tables.length>1?`<button class="link" id="rm-table" data-a="rmtable">空いている卓を1つ減らす</button>`:''}</div>
+    <div class="grid g3">${S.tables.map(t=>tile(t)).join('')}<button class="tile addt" id="add-table" data-a="addtable">${PLUS}卓を追加</button></div></section>
+  <section class="sec"><div class="row between"><h2>これからの予約</h2><button class="link" id="to-resv" data-a="tab" data-v="resv">予約の一覧・登録${CHEV}</button></div>
+    ${(()=>{const up=S.resv.filter(r=>['booked','seated'].includes(r.st)).sort((a,b)=>a.at-b.at).slice(0,3);
+      return up.length?`<div>${up.map(r=>resvRow(r,false)).join('')}</div>`:'<p class="sub" style="font-size:15px">これからの予約はありません。</p>';})()}
+    <p class="sub">予約の${LEAD}分前になると、卓を1つ自動で用意し、この画面・店長の画面・Slackでお知らせします。</p></section>`;
+  return {t:'フロア',band,body};
+},
+recv(){
+  return {t:'受付担当',band:ctxBand(),body:`${resvNote()}<section class="sec"><h2>受付をしたスタッフを選びます</h2>
+  <div class="grid g2">${onDuty().map(s=>`<button class="pickc" id="recv-${s.id}" data-a="recv" data-id="${s.id}"><span class="ava">${esc(s.name[0])}</span><span><b>${esc(s.name)}さん</b><span class="d">${esc(s.kind)}</span></span></button>`).join('')}</div></section>`};
+},
+help(){
+  const h=S.help;
+  return {t:'応援スタッフ',band:'',body:`<section class="box" style="max-width:560px"><h2>当日だけ入る外部スタッフを追加します</h2>
+    <label for="help-kind">区分<select id="help-kind" data-f="kind">${['イベント応援','業務委託','キャリアのヘルパー'].map(c=>`<option ${c===h.kind?'selected':''}>${c}</option>`).join('')}</select></label>
+    <label for="help-co">会社名<select id="help-co" data-f="co">${COMPANIES.map(c=>`<option ${c===h.co?'selected':''}>${c}</option>`).join('')}</select></label>
+    <label for="help-name">氏名<input type="text" id="help-name" data-f="name" value="${esc(h.name)}" placeholder="例：田中"></label>
+    <div><button class="btn" id="help-save" data-a="helpsave">追加して出勤にする${CHEV}</button></div></section>`};
+},
+type(){
+  return {t:'来店区分',band:ctxBand(),body:`<section class="sec"><h2>迷ったら、上から順に当てはまるものを選びます</h2>
+  <div class="grid g2">${TYPES.map(t=>`<button class="pickc" id="type-${t.k}" data-a="type" data-v="${t.k}"><span><b>${t.n}</b><span class="d">${t.d}</span></span><span class="kind">${t.g}</span></button>`).join('')}</div></section>`};
+},
+mode(){
+  return {t:'ヒアリング',band:ctxBand(),body:`<section class="sec"><h2>ヒアリングの方法を選びます</h2><div class="grid g2">
+    <button class="pickc" id="mode-cust" data-a="hear" data-v="customer"><span><b>お客様に記入していただく</b><span class="d">iPadをお渡しします。1問ずつ、選ぶだけで終わります</span></span></button>
+    <button class="pickc" id="mode-staff" data-a="hear" data-v="staff"><span><b>スタッフが記入する</b><span class="d">お客様に伺いながら、1画面で入力します</span></span></button></div></section>`};
+},
+cust(){
+  const q=QS[S.step], cur=S.draft[q.k];
+  return {t:'ご質問',band:'',body:`<section class="paper">
+    <div class="lead"><span>ご質問 ${S.step+1} / ${QS.length}</span><span>お名前・電話番号はお伺いしません</span></div>
+    <div class="prog"><i style="width:${Math.round((S.step+1)/QS.length*100)}%"></i></div>
+    <h2>${q.q}</h2>
+    <div class="opts">${q.o.map((o,i)=>`<button class="opt" id="opt-${i}" aria-pressed="${cur===o}" data-a="ans" data-v="${esc(o)}">${o}</button>`).join('')}</div>
+    <div class="row between"><button class="btn line" id="q-back" data-a="qback">${S.step===0?'やめる':'前の質問に戻る'}</button>
+      <button class="btn" id="q-next" data-a="qnext" ${cur?'':'disabled'}>${S.step===QS.length-1?'これで終わる':'次へ'}${CHEV}</button></div></section>`};
+},
+custdone(){
+  return {t:'ご記入ありがとうございました',band:'',body:`<section class="paper" style="text-align:center;align-items:center;padding-top:40px"><h2>ご記入ありがとうございました</h2><p style="font-size:21px;font-weight:400">iPadをスタッフにお渡しください。</p>
+    <button class="btn" id="cust-done" data-a="go" data-v="pick">スタッフが受け取った${CHEV}</button></section>`};
+},
+staffhear(){
+  const d=S.draft;
+  return {t:'ヒアリング入力',band:ctxBand(),body:`<section class="box" style="gap:24px"><p class="sub">年代は見た目で決めず、お客様に伺って選びます</p>
+    ${QS.map(q=>`<div class="sec" style="gap:10px"><h2>${q.q}</h2><div class="row" style="gap:8px">${q.o.map(o=>`<button class="tg a auto" aria-pressed="${d[q.k]===o}" data-a="sans" data-k="${q.k}" data-v="${esc(o)}">${CHK}${o}</button>`).join('')}</div></div>`).join('')}
+    <div class="sec" style="gap:10px"><h2>お渡し・実施したもの（スタッフ記入のときだけ）</h2><div class="row" style="gap:8px">${EXTRA.map((o,i)=>`<button class="tg a auto" id="extra-${i}" aria-pressed="${(d.extra||[]).includes(o)}" data-a="sans" data-k="extra" data-v="${o}">${CHK}${o}</button>`).join('')}</div></div></section>`,
+   act:`<div class="action"><div class="sum">${d.age?'年代 '+esc(d.age):'年代を選ぶと進めます'}</div><button class="btn" id="sh-done" data-a="shdone" ${d.age?'':'disabled'}>担当を選ぶ${CHEV}</button></div>`};
+},
+pick(){
+  const v=V(), ch=S.changing, ap=S.afterPick;
+  const title=ap?'登録の担当者':ch?'担当変更':'接客の担当';
+  const sub=ap?'登録・データ移行の担当者を選びます。成約後の提案・獲得は、この担当者の分として記録します':ch?'新しい担当者を選びます。変更後の提案・獲得は、新しい担当者の分として記録します':'接客するスタッフを選びます。出勤しているスタッフだけが表示されます';
+  const keep=ap?seg(v).sid:(!ch?v.recv:null);
+  let list=onDuty().filter(s=>ap||!ch||s.id!==seg(v).sid);
+  list=[...list.filter(s=>s.id===keep),...list.filter(s=>s.id!==keep)];
+  return {t:title,band:ctxBand(),body:`<section class="sec"><h2>${sub}</h2>
+  <div class="grid g2">${list.map(s=>`<button class="pickc ${s.id===keep?'keep':''}" id="pick-${s.id}" data-a="pick" data-id="${s.id}"><span class="ava">${esc(s.name[0])}</span><span><b>${esc(s.name)}さん</b><span class="d">${s.id===keep?(ap?'接客の担当のまま続ける':'受付担当のまま接客する'):esc(s.kind)}</span></span></button>`).join('')}</div></section>`};
+},
+serve(){
+  const v=V(), sg=seg(v), sug=suggest(v.h);
+  const body=`${resvNote()}<div class="grid g2" style="gap:24px;align-items:start">
+   <section class="box"><h2>お客様に合うご提案</h2>
+    ${!v.h?'<p>ヒアリングなしの来店です。提案候補は表示しません。お客様からご相談があった商材だけチェックしてください。</p>':
+      `<dl class="memo">${QS.map(q=>`<dt>${q.s}</dt><dd>${esc(v.h[q.k]||'未記入')}</dd>`).join('')}${(v.h.extra||[]).length?`<dt>実施</dt><dd>${v.h.extra.map(esc).join('、')}</dd>`:''}</dl>
+       <div class="grid" style="gap:10px">${sug.length?sug.map(s=>`<div class="sug"><b>${prod(s.k)}</b>${s.r}</div>`).join(''):'<p>ヒアリングの内容から、こちらからお勧めする商材はありません。</p>'}</div>`}
+    <p class="sub">お客様にメリットがある場合だけご案内します。理由の文は仮のルールです。</p></section>
+   <section class="box"><h2>提案した商材・獲得した商材</h2>
+    ${v.segs.length>1?`<p class="sub">${v.segs.slice(0,-1).map(x=>`${esc(staffName(x.sid))}さんの分：提案${x.p.length}・獲得${x.w.length}`).join('　')}　／　ここからは${esc(staffName(sg.sid))}さんの分です</p>`:''}
+    ${checklist(v,sg,false)}</section></div>`;
+  const act=`<div class="action"><div class="sum"><span>提案<b>${sg.p.length}</b></span><span>獲得<b>${sg.w.length}</b></span></div>
+    <button class="btn onblue" id="serve-end" data-a="end">成約なしで終了</button>
+    <button class="btn onblue" id="serve-change" data-a="change">担当変更</button>
+    <button class="btn" id="serve-won" data-a="won">成約へ${CHEV}</button></div>`;
+  return {t:'接客',band:ctxBand(),body,act};
+},
+after(){
+  const v=V(), sg=seg(v);
+  const timer=(k,n)=>{const x=v[k], m=x.s&&!x.e?mins(x.s):0, over=m>=30;
+    const body=x.none?`<p class="sub" style="font-size:16px">${n}はありません</p>`
+      :x.e?`<div class="timer done">${ring(1,1,66)}<span><span class="big">${Math.round((x.e-x.s)/M)}</span><span class="u">分で完了</span></span></div>`
+      :x.s?`<div class="timer ${over?'over':''}">${ring(m,30,66)}<span><span class="big">${m}</span><span class="u">分経過${over?'（30分を超えています）':''}</span></span></div>`
+      :`<p class="sub" style="font-size:16px">まだ始めていません</p>`;
+    const btn=x.e||x.none?'':x.s?`<button class="btn blue" id="${k}-end" data-a="tend" data-v="${k}">${n}を完了</button>`
+      :`<button class="btn line" id="${k}-start" data-a="tstart" data-v="${k}">${n}を始める</button>${k==='move'?`<button class="link" id="move-none" data-a="movenone">データ移行なし</button>`:''}`;
+    return `<section class="box"><h2>${n}</h2>${body}${btn?`<div class="row">${btn}</div>`:''}
+      <p class="sub">30分を過ぎると店長の画面に知らせ、その後は15分ごとに知らせます。</p></section>`};
+  const body=`<div class="grid g2" style="gap:24px">${timer('setup','顧客登録')}${timer('move','データ移行')}</div>
+  <section class="box"><h2>手続き中に提案した商材・獲得した商材</h2>
+    <p class="sub">${esc(staffName(sg.sid))}さんの分として記録します。携帯の契約は、成約済みのためここには出しません。これまでの獲得：${v.segs.slice(0,-1).flatMap(x=>x.w).map(prod).join('、')||'チェックなし'}</p>
+    ${checklist(v,sg,true)}</section>
+  <p class="sub">顧客登録とデータ移行の両方が終わると、自動でお客様アンケートに切り替わります。提案・獲得のチェックを先に済ませてください。アンケートが終わるまで、卓は空きになりません。</p>`;
+  const act=`<div class="action"><div class="sum"><span>提案<b>${sg.p.length}</b></span><span>獲得<b>${sg.w.length}</b></span></div><button class="btn onblue" id="after-change" data-a="change">担当変更</button></div>`;
+  return {t:'成約後の手続き',band:ctxBand(),body,act};
+},
+survey(){
+  const d=S.draft;
+  const scale=(k,q)=>`<div class="sec" style="gap:14px"><h2 style="font-size:25px">${q}</h2><div class="five">${[1,2,3,4,5].map(n=>`<button class="opt" id="${k}-${n}" aria-pressed="${d[k]===n}" data-a="sv" data-k="${k}" data-n="${n}">${n}</button>`).join('')}</div>
+    <div class="lead"><span>よくなかった</span><span>とてもよかった</span></div></div>`;
+  return {t:'アンケート',band:'',body:`<section class="paper">
+    <div class="lead"><span>アンケート（3問）</span><span>回答はスタッフには見えません。お答えは任意です。</span></div>
+    ${scale('a','今日の対応はいかがでしたか')}${scale('b','説明は分かりやすかったですか')}
+    <div class="sec" style="gap:14px"><h2 style="font-size:25px">また来たいと思いますか</h2><div class="opts">${['はい','どちらでもない','いいえ'].map((o,i)=>`<button class="opt" id="c-${i}" aria-pressed="${d.c===o}" data-a="sv" data-k="c" data-v="${o}">${o}</button>`).join('')}</div></div>
+    <div class="row between"><button class="btn line" id="sv-skip" data-a="svdone" data-v="skip">回答しない</button>
+      <button class="btn" id="sv-send" data-a="svdone" data-v="send" ${d.a&&d.b&&d.c?'':'disabled'}>送信する${CHEV}</button></div></section>`};
+},
+thanks(){
+  return {t:'ありがとうございました',band:'',body:`<section class="paper" style="text-align:center;align-items:center;padding-top:40px"><h2>ありがとうございました</h2>
+    <p style="font-size:21px;font-weight:400">iPadをスタッフにお渡しください。回答の内容は、この画面には残りません。</p>
+    <button class="btn" id="thanks-back" data-a="free">スタッフに戻す${CHEV}</button></section>`};
+}};
+
+function stats(){
+  const all=[...S.closed,...S.tables.filter(t=>t.v&&t.v.segs.length).map(t=>t.v)];
+  const visits=S.closed.length+S.tables.filter(t=>t.v).length;
+  const prop=all.filter(v=>v.segs.some(s=>s.p.length)).length;
+  const won=all.filter(v=>v.result==='won').length;
+  const per=S.staff.map(s=>{const mine=all.filter(v=>v.segs.some(x=>x.sid===s.id));
+    return {n:s.name,v:mine.length,p:mine.filter(v=>v.segs.some(x=>x.sid===s.id&&x.p.length)).length,w:mine.filter(v=>v.segs.some(x=>x.sid===s.id&&x.w.length)).length}});
+  const pr=PRODS.map(p=>({n:p.n,p:all.reduce((a,v)=>a+v.segs.filter(x=>x.p.includes(p.k)).length,0),w:all.reduce((a,v)=>a+v.segs.filter(x=>x.w.includes(p.k)).length,0)}));
+  const acts=ACTS.map(a=>({n:a.n,c:all.reduce((x,v)=>x+v.segs.filter(g=>(g.a||[]).includes(a.k)).length,0)}));
+  return {visits,prop,won,per,pr,acts};
+}
+function viewMgr(){
+  const al=alerts(), st=stats(), mx=Math.max(1,...st.pr.map(r=>r.p));
+  const band=`<div class="band"><div class="b-box"><span>店舗</span><b style="font-family:var(--ui);font-size:19px;line-height:2">見本店</b></div>
+    <div class="b-main"><small>店長の画面</small><strong>${al.length?'確認が必要なことがあります':'確認が必要なことはありません'}</strong></div>
+    <div class="b-right"><div class="b-stat"><b>${st.visits}</b> 組<small>本日の来店</small></div><div class="b-stat"><b>${st.won}</b> 組<small>成約</small></div></div></div>`;
+  const body=`
+  <section class="sec"><h2>確認が必要なこと　${al.length}件</h2>
+    ${al.length?al.map(a=>`<div class="alert ${a.lv==='warn'?'w':''}"><span class="ic" aria-hidden="true">!</span><div><b>${esc(a.t)}</b><span>${esc(a.d)}</span></div></div>`).join(''):'<p class="sub" style="font-size:15px">いま確認が必要なことはありません。</p>'}
+    <p class="sub">対応が済むまで、ここに表示し続けます。</p></section>
+  <section class="sec"><h2>いまの卓</h2><div class="grid g3">${S.tables.map(t=>tile(t,true)).join('')}</div></section>
+  <section class="sec"><h2>予約</h2>
+    <div class="row">${[['これから',['booked','seated']],['来店',['arrived','done']],['来店なし',['noshow']],['取消',['cancel']]].map(([n,k])=>`<span class="pill">${n}<b>${S.resv.filter(r=>k.includes(r.st)).length}</b>件</span>`).join('')}</div>
+    <div>${[...S.resv].sort((a,b)=>a.at-b.at).map(r=>resvRow(r,false)).join('')}</div></section>
+  <section class="box"><h2>本日の数字</h2>
+    <div class="kpis"><div class="kpi"><div class="v">${st.visits}</div><div class="l">来店（組）</div></div>
+      <div class="kpi"><div class="v">${st.prop}</div><div class="l">提案した組</div></div>
+      <div class="kpi"><div class="v">${st.won}</div><div class="l">成約した組</div></div></div>
+    <div class="grid g2" style="gap:32px">
+     <div class="sec"><h2>スタッフ別</h2><div class="scroll"><table><thead><tr><th>スタッフ</th><th class="n">接客</th><th class="n">提案</th><th class="n">成約</th></tr></thead><tbody>
+      ${st.per.map(r=>`<tr><td>${esc(r.n)}</td><td class="n">${r.v}</td><td class="n">${r.p}</td><td class="n">${r.w}</td></tr>`).join('')}</tbody></table></div></div>
+     <div class="sec"><div class="row between"><h2>商材別</h2><div class="legend"><span><i style="background:var(--blue)"></i>提案回数</span><span><i style="background:var(--ok)"></i>獲得数</span></div></div>
+      <div class="pb">${st.pr.map(r=>`<span>${r.n}</span><span class="bars"><span class="b1" style="width:${r.p/mx*100}%"></span><span class="b2" style="width:${r.w/mx*100}%"></span></span><span class="v">${r.p}／${r.w}</span>`).join('')}</div></div>
+    </div>
+    <div class="row">${st.acts.map(a=>`<span class="pill">${a.n}<b>${a.c}</b>件</span>`).join('')}</div>
+    <p class="sub">この数字が、そのまま報告の数字になります。別の表やSlackへの入力はありません。</p></section>
+  <section class="sec"><h2>ヒアリングのお知らせ</h2><div>${S.feed.map(f=>`<div class="feed"><span class="t">${hm(f.at)}</span><span>${esc(f.text)}</span></div>`).join('')}</div></section>
+  <section class="box"><h2>お客様アンケート</h2>
+    <div class="row" style="gap:16px"><span class="pill">今月の回答<b>${S.surveys}</b>件</span><span class="pill">満足度の平均<b>${S.surveys>=5?'4.4':'—'}</b>／5</span></div>
+    <p class="sub">店長の画面には月ごとの集計だけを表示します。回答が5件未満の月は表示しません。1件ずつの回答は表示しません。</p></section>`;
+  return {t:'店長',band,body};
+}
+
+function render(){
+  syncResv();
+  const mgr=S.role==='mgr', cust=!mgr&&CUST.includes(S.screen), rsc=!mgr&&RSCREEN.includes(S.screen);
+  const v=mgr?viewMgr():(views[S.screen]||views.home)();
+  document.body.classList.toggle('cust-mode',cust);
+  document.getElementById('role-staff').setAttribute('aria-pressed',!mgr&&!rsc);
+  document.getElementById('role-resv').setAttribute('aria-pressed',rsc);
+  document.getElementById('role-mgr').setAttribute('aria-pressed',mgr);
+  document.getElementById('tb-t').textContent=v.t;
+  const flow=!mgr&&!cust&&!['home','resv'].includes(S.screen);
+  document.getElementById('tb-l').innerHTML=flow&&S.hist.length?`<button class="link" id="go-back" data-a="back">${BACK}1つ前に戻る</button>`:cust?'<span class="sub">お客様用の画面</span>':'';
+  document.getElementById('tb-r').innerHTML=(flow?`<button class="link" id="go-home" data-a="home">卓の一覧</button>`:'')+`<span class="clock num">${hm(now())}</span>`;
+  document.getElementById('band').innerHTML=v.band||'';
+  document.getElementById('app').innerHTML=v.body;
+  document.getElementById('act').innerHTML=v.act||'';
+}
+
+function closeVisit(result){const t=T(),v=t.v; v.result=v.result||result; S.closed.push(v); t.v=null;
+  if(v.rid){const r=RV(v.rid); r.st='done'; r.tid=null;} if(t.auto) S.tables=S.tables.filter(x=>x!==t); S.screen='home'; S.changing=false; S.afterPick=false; S.hist=[];}
+function snap(){const {hist,...rest}=S; hist.push(JSON.stringify(rest)); if(hist.length>40) hist.shift();}
+function autoSurvey(){const v=V(); if(v.setup.e&&(v.move.e||v.move.none)&&!v.survey){S.draft={}; S.hist=[]; S.screen='survey';}}
+function saveHearing(){const v=V(); v.h={...S.draft,extra:S.draft.extra||[]}; v.phase='ready';
+  S.feed.unshift({at:now(),text:`${T().name}　${v.h.age}　ご用件：${v.h.purpose||'未記入'}`});}
+const toggle=(c,val)=>{c=c||[]; return c.includes(val)?c.filter(x=>x!==val):[...c,val];};
+const SNAP=['table','recv','type','hear','shdone','pick','change','won','go','rnew'];
+const A={
+ role(d){S.role=d.v;},
+ tab(d){ if(d.v==='mgr'){S.role='mgr';return;} S.role='staff';
+   if(d.v==='resv'){S.screen='resv';S.hist=[];S.changing=false;S.afterPick=false;} else if(RSCREEN.includes(S.screen)) S.screen='home'; },
+ rnew(){const t=now()+30*M, d=new Date(t); d.setMinutes(Math.ceil(d.getMinutes()/5)*5,0,0);
+   S.rf={date:ymd(d.getTime()),time:hm(d.getTime()),purpose:QS[1].o[0],staff:''}; S.rfErr=''; S.screen='resvnew';},
+ rsave(){const f=S.rf, at=new Date(f.date+'T'+f.time).getTime();
+   if(!f.date||!f.time||isNaN(at)){S.rfErr='来店日と来店時刻を選んでください。';return;}
+   if(at<=now()){S.rfErr='これからの日時を選んでください。';return;}
+   S.resv.push({id:Math.max(0,...S.resv.map(r=>r.id))+1,no:'R-'+(S.rno++),at,purpose:f.purpose,staff:f.staff?+f.staff:null,st:'booked',tid:null});
+   S.rf=null; S.rfErr=''; S.screen='resv'; S.hist=[];},
+ rcancel(d){const r=RV(+d.id); r.st='cancel'; dropAutoTable(r);},
+ noshow(d){const r=RV(+d.id); r.st='noshow'; dropAutoTable(r); if(!RSCREEN.includes(S.screen)){S.screen='home';S.hist=[];}},
+ home(){S.screen='home';S.changing=false;S.afterPick=false;S.hist=[];},
+ back(){const h=S.hist; if(!h.length) return; const role=S.role; S={...JSON.parse(h.pop()),hist:h,role};},
+ go(d){S.screen=d.v;},
+ clockin(d){S.staff.find(s=>s.id===+d.id).inAt=now();},
+ helpsave(){const h=S.help; if(!h.name.trim()) return; const id=Math.max(...S.staff.map(s=>s.id))+1;
+   S.staff.push({id,name:h.name.trim(),kind:`${h.kind}・${h.co.replace('（会社名を入力）','')}`,shift:now(),inAt:now()}); S.help={kind:'イベント応援',co:COMPANIES[0],name:''}; S.screen='home'; S.hist=[];},
+ addtable(){const id=Math.max(...S.tables.map(t=>t.id))+1; S.tables.push({id,name:'卓'+id,v:null});},
+ rmtable(){for(let i=S.tables.length-1;i>=0;i--){if(!S.tables[i].v&&!S.tables[i].auto){S.tables.splice(i,1);break;}}},
+ table(d){S.tid=+d.id; const v=V(); S.changing=false; S.afterPick=false;
+   if(!v){S.recvId=null;S.screen='recv';return;}
+   if(v.phase==='hearing'){S.draft={};S.step=0;S.screen=typeOf(v.type).inbound?'mode':'staffhear';return;}
+   if(v.phase==='after'&&seg(v).stage!=='after'){S.changing=true;S.afterPick=true;S.screen='pick';return;}
+   S.screen={ready:'pick',serving:'serve',after:'after'}[v.phase]||'type';},
+ recv(d){S.recvId=+d.id; S.screen='type';},
+ type(d){const ty=typeOf(d.v);
+   T().v={id:++S.vid,recv:S.recvId,type:d.v,at:now(),phase:'hearing',by:null,h:null,segs:[],setup:{},move:{}};
+   S.draft={}; S.step=0; const v=T().v;
+   if(T().rid){v.rid=T().rid; RV(v.rid).st='arrived';}
+   if(ty.skip){v.by='none'; v.phase='serving'; v.segs.push({sid:S.recvId,p:[],w:[],a:[],stage:'serve'}); S.screen='serve';}
+   else if(ty.inbound) S.screen='mode';
+   else {v.by='staff'; S.screen='staffhear';}},
+ hear(d){V().by=d.v; S.draft={}; S.step=0; S.screen=d.v==='customer'?'cust':'staffhear';},
+ ans(d){S.draft[QS[S.step].k]=d.v;},
+ qback(){ if(S.step===0){S.screen='mode';} else S.step--; },
+ qnext(){ if(S.step<QS.length-1){S.step++;return;} saveHearing(); S.screen='custdone'; },
+ sans(d){ if(d.k==='extra') S.draft.extra=toggle(S.draft.extra,d.v); else S.draft[d.k]=S.draft[d.k]===d.v?undefined:d.v; },
+ shdone(){saveHearing(); S.screen='pick';},
+ pick(d){const v=V(), after=v.phase==='after';
+   v.segs.push({sid:+d.id,p:[],w:[],a:[],stage:after?'after':'serve'});
+   if(!after) v.phase='serving';
+   S.changing=false; S.afterPick=false; S.screen=after?'after':'serve';},
+ prop(d){const s=seg(V()); if(s.p.includes(d.v)){s.p=s.p.filter(x=>x!==d.v); s.w=s.w.filter(x=>x!==d.v);} else s.p.push(d.v);},
+ win(d){const s=seg(V()); if(s.w.includes(d.v)) s.w=s.w.filter(x=>x!==d.v); else {s.w.push(d.v); if(!s.p.includes(d.v)) s.p.push(d.v);}},
+ act(d){const s=seg(V()); s.a=toggle(s.a,d.v);},
+ change(){S.changing=true; S.afterPick=false; S.screen='pick';},
+ won(){const v=V(); v.phase='after'; v.result='won'; S.changing=true; S.afterPick=true; S.screen='pick';},
+ end(){closeVisit('lost');},
+ tstart(d){V()[d.v].s=now();},
+ tend(d){V()[d.v].e=now(); autoSurvey();},
+ movenone(){V().move.none=true; autoSurvey();},
+ sv(d){S.draft[d.k]=d.n?+d.n:d.v;},
+ svdone(d){ if(d.v==='send') S.surveys++; V().survey=true; S.draft={}; S.screen='thanks'; },
+ free(){closeVisit('won');},
+ plus(){skew+=10*M;},
+ reset(){init();}
+};
+document.addEventListener('click',e=>{const el=e.target.closest('[data-a]'); if(!el||el.disabled) return; const a=el.dataset.a, f=A[a]; if(!f) return;
+  const before=S.screen+S.role; if(SNAP.includes(a)) snap(); f(el.dataset); render(); if(S.screen+S.role!==before) window.scrollTo(0,0);});
+function field(e){const d=e.target.dataset; if(d&&d.f){(d.g==='rf'?S.rf:S.help)[d.f]=e.target.value;}}
+document.addEventListener('input',field); document.addEventListener('change',field);
+setInterval(()=>{const a=document.activeElement; if(a&&(a.tagName==='INPUT'||a.tagName==='SELECT')) return; if(RSCREEN.includes(S.screen)&&S.screen==='resvnew'&&S.role==='staff') return; render();},20000);
+function start(d){ if(d&&d.S){S=d.S; skew=d.skew||0;} else init(); render(); }
+if(window.claude&&window.claude.hot){ window.claude.hot.snapshot(()=>({S,skew})); }
+if(window.claude&&window.claude.hot&&window.claude.hot.ready) window.claude.hot.ready(start); else start((window.claude&&window.claude.hot&&window.claude.hot.data)||{});
+</script>
+</body>
+</html>
