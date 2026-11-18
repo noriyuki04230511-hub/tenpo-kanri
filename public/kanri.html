@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>店舗管理システム 管理画面</title>
+<meta name="robots" content="noindex,nofollow">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* 卓の画面と同じ色・線・文字。上に題名の帯、青い条件の帯、白い枠の表を広い余白で並べる */
+  color-scheme: light;
+  --bg:#f3f5f7; --surface:#fff; --tint:#eaf2fb; --ink:#22303d; --ink2:#5b6976; --line:#d4dae1; --off:#e3e7eb;
+  --blue:#2a74c7; --blue-deep:#1f5ea6; --accent:#dd4468; --ok:#1b7d52; --amber:#a66200; --red:#cf3a3a;
+  --ui:"Noto Sans JP","Hiragino Sans","Yu Gothic UI",sans-serif; --num:"Barlow","Noto Sans JP",sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--ui);background:var(--bg);color:var(--ink);line-height:1.6;font-size:15px;-webkit-text-size-adjust:100%}
+button{font:inherit;color:inherit;cursor:pointer;border:none;background:none}
+button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+h1,h2{font-weight:500;line-height:1.3}
+.num{font-family:var(--num);font-variant-numeric:tabular-nums}
+.top{position:sticky;top:0;z-index:5;background:var(--surface);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:56px;padding:0 20px}
+.top h1{font-size:20px;font-weight:400;letter-spacing:.08em}
+.top .r{display:flex;gap:14px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.link{color:var(--blue);font-size:14px;min-height:40px;display:inline-flex;align-items:center;text-decoration:none}
+.note{background:#fff9e6;border-bottom:1px solid #ecd79a;color:#6b5200;font-size:12.5px;padding:6px 20px}
+.band{background:var(--blue);color:#fff;display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;padding:14px 20px}
+.band .grp{display:flex;gap:6px;flex-wrap:wrap}
+.band button,.band select{min-height:42px;padding:6px 16px;border:1px solid rgba(255,255,255,.8);border-radius:4px;color:#fff;background:transparent;font:inherit;font-size:14.5px}
+.band button[aria-pressed="true"]{background:#fff;color:var(--blue-deep);font-weight:500}
+.band select option{color:var(--ink)}
+.band .upd{margin-left:auto;font-size:12.5px;opacity:.92}
+main{max-width:1200px;margin:0 auto;padding:22px 20px 60px;display:flex;flex-direction:column;gap:28px}
+.sec{display:flex;flex-direction:column;gap:10px}
+.sec>h2{font-size:15px;font-weight:700;letter-spacing:.06em}
+.sub{color:var(--ink2);font-size:13px}
+.box{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:18px 20px;display:flex;flex-direction:column;gap:14px}
+.grid2{display:grid;gap:20px;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));align-items:start}
+.kpis{display:grid;grid-template-columns:repeat(6,1fr);background:var(--surface);border:1px solid var(--line);border-radius:6px}
+.kpi{padding:14px 16px;border-left:1px solid var(--line)} .kpi:first-child{border-left:none}
+.kpi .v{font-family:var(--num);font-weight:300;font-size:40px;line-height:1.1;color:var(--blue)}
+.kpi .v small{font-size:16px;margin-left:2px}
+.kpi .l{font-size:12.5px;color:var(--ink2)}
+table{width:100%;border-collapse:collapse}
+th,td{padding:9px 8px;border-bottom:1px solid var(--line);text-align:left;font-size:14px;white-space:nowrap}
+th{font-size:12px;color:var(--ink2);font-weight:400;background:var(--bg)}
+td.n,th.n{text-align:right} td.n{font-family:var(--num);font-size:17px;color:var(--blue)}
+td.w{white-space:normal;min-width:120px}
+.scroll{overflow-x:auto}
+.barrow{display:grid;grid-template-columns:minmax(110px,220px) 1fr auto;gap:8px 12px;align-items:center;font-size:13.5px}
+.bars{display:flex;flex-direction:column;gap:3px}
+.b1,.b2{height:6px;border-radius:3px;min-width:2px} .b1{background:var(--blue)} .b2{background:var(--ok)}
+.barrow .v{font-family:var(--num);font-size:14.5px;color:var(--ink2)}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--ink2)}
+.legend i{display:inline-block;width:14px;height:6px;border-radius:3px;margin-right:6px;vertical-align:middle}
+.pills{display:flex;flex-wrap:wrap;gap:8px}
+.pill{display:inline-flex;align-items:baseline;gap:8px;border:1px solid var(--line);border-radius:4px;padding:6px 12px;font-size:13.5px;background:var(--surface)}
+.pill b{font-family:var(--num);font-weight:400;font-size:21px;color:var(--blue)}
+.chip{font-size:12px;border:1px solid var(--line);border-radius:3px;padding:1px 8px;color:var(--ink2)}
+.chip.won{border-color:var(--ok);color:var(--ok)} .chip.open{border-color:var(--blue);color:#fff;background:var(--blue)}
+tr.new td{background:var(--tint)}
+.btn{min-height:50px;padding:10px 22px;border-radius:4px;font-size:15.5px;font-weight:500;background:var(--accent);color:#fff;display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
+.btn.line{background:var(--surface);color:var(--blue);border:1px solid var(--blue)}
+.btn[disabled]{background:var(--off);color:#8b96a1;cursor:not-allowed}
+label{font-size:13.5px;color:var(--ink2);display:flex;flex-direction:column;gap:6px}
+input{font:inherit;min-height:48px;border:1px solid var(--line);border-radius:4px;padding:8px 14px;background:#fff;color:var(--ink);width:100%}
+.err{color:var(--red);font-size:13.5px}
+svg text{font-family:var(--num);font-size:11px;fill:var(--ink2)}
+@media (max-width:760px){
+  .top{padding:0 12px} .top h1{font-size:17px} .band{padding:12px} .band .upd{margin-left:0;width:100%}
+  main{padding:18px 12px 48px;gap:24px} .box{padding:14px}
+  .kpis{grid-template-columns:repeat(2,1fr)} .kpi{border-left:none;border-top:1px solid var(--line)} .kpi:nth-child(-n+2){border-top:none} .kpi:nth-child(even){border-left:1px solid var(--line)}
+  .kpi .v{font-size:32px}
+  .barrow{grid-template-columns:1fr auto} .barrow>span:nth-child(3n+1){grid-column:1/-1;margin-bottom:-4px}
+}
+</style>
+</head>
+<body>
+<header class="top"><h1>管理画面</h1><div class="r" id="top-r"></div></header>
+<div id="note"></div>
+<div id="band"></div>
+<main id="app"></main>
+<script>
+'use strict';
+/* 公開用の鍵。これだけでは表を読めず、ログインした端末として入口の関数を呼べるだけ */
+const CFG={url:'https://egpibhkwemssnanalfoh.supabase.co/rest/v1',key:'sb_publishable_1WSi5i6QZa7AJz-KnNG_1A_-7WVhZfd'};
+const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}},del(k){try{localStorage.removeItem(k)}catch(e){}}};
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const $=id=>document.getElementById(id);
+let DEV=store.get('tk_dev',null), R=null, days=7, shop='', seen=null, lastAt=0, failed=false;
+const LG={mode:'login',err:'',id:'',busy:false};
+const LERR={login_failed:'IDまたはパスワードが違います。',locked:'5回続けて間違えたため、5分間はログインできません。',too_short:'パスワードは8文字以上にしてください。',already_set:'このIDのパスワードはすでに決まっています。ログインしてください。'};
+async function call(fn,args){
+  const r=await fetch(CFG.url+'/rpc/'+fn,{method:'POST',headers:{'Content-Type':'application/json',apikey:CFG.key},body:JSON.stringify(args)});
+  if(!r.ok){const e=new Error('http '+r.status); e.status=r.status; e.body=await r.text().catch(()=>''); throw e;}
+  return r.json();
+}
+const ymd=t=>{const d=new Date(t);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+const hm=t=>{const d=new Date(t);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')};
+const md=t=>{const d=new Date(t);return (d.getMonth()+1)+'/'+d.getDate()};
+const pct=(a,b)=>b>0?Math.round(a/b*1000)/10:null;
+const pv=v=>v==null?'—':v;
+function tbl(cols,rows,num){return `<div class="scroll"><table><thead><tr>${cols.map((c,i)=>`<th${num.includes(i)?' class="n"':''}>${c}</th>`).join('')}</tr></thead><tbody>${rows.join('')||`<tr><td colspan="${cols.length}" class="sub">この期間の記録はありません。</td></tr>`}</tbody></table></div>`;}
+function bars(list,a,b){const mx=Math.max(1,...list.map(x=>x[a]));return `<div class="barrow">${list.map(x=>`<span>${esc(x.label)}</span><span class="bars"><span class="b1" style="width:${x[a]/mx*100}%"></span><span class="b2" style="width:${x[b]/mx*100}%"></span></span><span class="v">${x[a]}／${x[b]}</span>`).join('')}</div>`;}
+
+function renderLogin(){
+  $('top-r').innerHTML='<a class="link" href="./">卓の画面へ</a>'; $('note').innerHTML=''; $('band').innerHTML='';
+  const setup=LG.mode==='setup';
+  $('app').innerHTML=`<section class="box" style="max-width:520px;width:100%;margin:0 auto"><h2>${setup?'最初のパスワードを決めます':'管理画面にログイン'}</h2>
+    ${setup?`<p class="sub">ID「${esc(LG.id)}」は、まだパスワードが決まっていません。8文字以上で決めてください。</p>
+      <label for="lg-new">新しいパスワード<input type="password" id="lg-new" autocomplete="new-password"></label>
+      <label for="lg-new2">もう一度入力<input type="password" id="lg-new2" autocomplete="new-password"></label>`
+     :`<p class="sub">店長用または本部用のIDでログインします。卓用のIDでは開けません。</p>
+      <label for="lg-id">ID<input type="text" id="lg-id" autocomplete="username" autocapitalize="none" spellcheck="false" value="${esc(LG.id)}"></label>
+      <label for="lg-pw">パスワード<input type="password" id="lg-pw" autocomplete="current-password"></label>`}
+    ${LG.err?`<p class="err" id="lg-err">${esc(LG.err)}</p>`:''}
+    <div><button class="btn" id="lg-go" data-a="${setup?'setpw':'login'}" ${LG.busy?'disabled':''}>${setup?'このパスワードに決める':'ログイン'}</button></div></section>
+  <section class="box" style="max-width:520px;width:100%;margin:0 auto"><h2>デモデータで見る</h2>
+    <p class="sub">見本の店4つ・30日分の見本データで、店長と経営側の見え方を確認できます。ログインは要りません。</p>
+    <div><button class="btn line" id="demo-go" data-a="demo" ${LG.busy?'disabled':''}>デモデータで見る</button></div></section>`;
+}
+function lg(o){Object.assign(LG,o); renderLogin();}
+function enter(d){DEV={device:d.device,secret:d.secret,role:d.role}; store.set('tk_dev',DEV); LG.busy=false; LG.err=''; LG.mode='login'; R=null; seen=null; shop=''; load();}
+async function doLogin(){
+  const id=($('lg-id').value||'').trim(), pw=$('lg-pw').value||''; if(!id) return lg({err:'IDを入力してください。'});
+  lg({busy:true,err:'',id});
+  try{const r=await call('app_login',{p_id:id,p_password:pw,p_label:'管理画面'});
+    if(r.need_setup) return lg({mode:'setup',busy:false});
+    if(r.error) return lg({busy:false,err:LERR[r.error]||'ログインできませんでした。'});
+    if(r.role==='table') {call('app_logout',{p_device:r.device,p_secret:r.secret}).catch(()=>{}); return lg({busy:false,err:'卓用のIDでは管理画面を開けません。店長用または本部用のIDでログインしてください。'});}
+    enter(r);
+  }catch(e){lg({busy:false,err:'通信できませんでした。もう一度お試しください。'});}
+}
+async function doSetPw(){
+  const a=$('lg-new').value||'', b=$('lg-new2').value||'';
+  if(a.length<8) return lg({err:LERR.too_short}); if(a!==b) return lg({err:'2つの入力が同じではありません。'});
+  lg({busy:true,err:''});
+  try{const r=await call('app_set_password',{p_id:LG.id,p_new:a});
+    if(r.error) return lg({busy:false,mode:r.error==='already_set'?'login':'setup',err:LERR[r.error]||'設定できませんでした。'});
+    const l=await call('app_login',{p_id:LG.id,p_password:a,p_label:'管理画面'});
+    if(l.error||l.need_setup) return lg({busy:false,mode:'login',err:'パスワードを決めました。ログインしてください。'});
+    if(l.role==='table') return lg({busy:false,mode:'login',err:'パスワードを決めました。このIDは卓用のため、管理画面は開けません。'});
+    enter(l);
+  }catch(e){lg({busy:false,err:'通信できませんでした。もう一度お試しください。'});}
+}
+async function doDemo(){lg({busy:true,err:''}); try{const d=await call('app_enroll_demo',{p_label:'管理画面デモ'}); enter({...d,role:'demo'});}catch(e){lg({busy:false,err:'通信できませんでした。もう一度お試しください。'});}}
+function logout(){const d=DEV; if(d) call('app_logout',{p_device:d.device,p_secret:d.secret}).catch(()=>{}); DEV=null; store.del('tk_dev'); R=null; renderLogin();}
+
+async function load(){
+  if(!DEV) return renderLogin();
+  if(DEV.role==='table'){DEV=null; return lg({err:'卓用のログインでは管理画面を開けません。店長用または本部用のIDでログインしてください。'});}
+  const to=new Date(), from=new Date(Date.now()-(days-1)*864e5);
+  try{R=await call('app_report',{p_device:DEV.device,p_secret:DEV.secret,p_from:ymd(from),p_to:ymd(to),p_shop:shop?+shop:null}); failed=false; lastAt=Date.now();}
+  catch(e){ if(String(e.body).includes('device_not_registered')||String(e.body).includes('forbidden')){DEV=null; store.del('tk_dev'); return lg({err:'ログインが切れました。もう一度ログインしてください。'});} failed=true; }
+  render();
+}
+function render(){
+  if(!R){$('app').innerHTML='<p class="sub">読み込んでいます。</p>';return;}
+  const demo=R.role==='demo', t=R.total, shops=R.allShops||[];
+  $('top-r').innerHTML=`<a class="link" href="./">卓の画面へ</a><button class="link" data-a="logout">${demo?'デモを終わる':'ログアウト'}</button>`;
+  $('note').innerHTML=demo?'<div class="note">見本データです（本物のお客様・スタッフではありません）。別の端末で「見本店で試す」を操作すると、15秒以内に「見本店」の数字と下の「記録の一覧」に反映されます。</div>':'';
+  $('band').innerHTML=`<div class="band"><div class="grp" role="group" aria-label="期間">${[[1,'今日'],[7,'7日間'],[30,'30日間']].map(([d,l])=>`<button data-a="days" data-v="${d}" aria-pressed="${days===d}">${l}</button>`).join('')}</div>
+    ${shops.length>1?`<select id="shop-sel" aria-label="店舗"><option value="">${R.role==='manager'?'':'全店'}</option>${shops.map(s=>`<option value="${s.id}" ${String(s.id)===String(shop)?'selected':''}>${esc(s.name)}</option>`).join('')}</select>`:`<span>${esc(shops[0]?shops[0].name:'')}</span>`}
+    <span class="upd">${failed?'通信できませんでした。15秒後にもう一度読み込みます':`${R.from} 〜 ${R.to}　最終更新 ${hm(lastAt)}（15秒ごとに自動更新）`}</span></div>`;
+  const ex=t.visits-t.guide, sAll=R.survey;
+  const kp=[['来店（組）',t.visits,''],['提案した組',t.proposed,''],['成約した組',t.won,''],['成約率（操作説明を含む）',pv(pct(t.won,t.visits)),'%'],['成約率（操作説明を除く）',pv(pct(t.won,ex)),'%'],['満足度（5点満点）',sAll.n>=5?Math.round((+sAll.service+ +sAll.clarity)/2*10)/10:'—','']];
+  const fresh=new Set(); const keys=R.recent.map(r=>r.at+'|'+r.shop+'|'+r.tbl); if(seen) keys.forEach(k=>{if(!seen.has(k)) fresh.add(k);}); seen=new Set(keys);
+  const mxd=Math.max(1,...R.byDay.map(d=>d.visits)), W=840, H=170, n=R.byDay.length, bw=Math.max(6,Math.min(46,(W-40)/n-4));
+  const chart=n>1?`<svg viewBox="0 0 ${W} ${H+26}" width="100%" role="img" aria-label="日別の来店と成約">${R.byDay.map((d,i)=>{const x=30+i*((W-40)/n)+((W-40)/n-bw)/2, h1=d.visits/mxd*H, h2=d.won/mxd*H;
+      return `<rect x="${x.toFixed(1)}" y="${(H-h1).toFixed(1)}" width="${bw.toFixed(1)}" height="${h1.toFixed(1)}" fill="var(--blue)" opacity=".35"><title>${md(d.day)} 来店${d.visits}・成約${d.won}</title></rect><rect x="${x.toFixed(1)}" y="${(H-h2).toFixed(1)}" width="${bw.toFixed(1)}" height="${h2.toFixed(1)}" fill="var(--ok)"><title>${md(d.day)} 成約${d.won}</title></rect>${(n<=10||i%Math.ceil(n/10)===0)?`<text x="${(x+bw/2).toFixed(1)}" y="${H+16}" text-anchor="middle">${md(d.day)}</text>`:''}`}).join('')}<text x="0" y="12">${mxd}</text><line x1="26" y1="${H}" x2="${W}" y2="${H}" stroke="var(--line)"/></svg>
+      <div class="legend"><span><i style="background:var(--blue);opacity:.35"></i>来店</span><span><i style="background:var(--ok)"></i>成約</span></div>`:'';
+  const act=R.actions||{}, pr=R.proc||{}, rv=R.resv||{};
+  $('app').innerHTML=`
+  <section class="sec"><h2>全体の数字</h2><div class="kpis">${kp.map(([l,v,u])=>`<div class="kpi"><div class="v">${v}${v==='—'?'':`<small>${u}</small>`}</div><div class="l">${l}</div></div>`).join('')}</div>
+    <p class="sub">成約率は「成約した組 ÷ 来店」。操作説明を除くほうは、来店区分「インバウンド操作説明（サポート会員ヒアリングなし）」${t.guide}組を分母から除いています。満足度はアンケートの回答が5件以上のときだけ表示します（この期間の回答 ${sAll.n}件）。</p></section>
+  ${R.byShop.length>1?`<section class="sec"><h2>店舗別</h2><div class="box">${tbl(['店舗','来店','提案','成約','成約率（含む）','成約率（除く）','満足度','回答'],R.byShop.map(s=>`<tr><td>${esc(s.name)}</td><td class="n">${s.visits}</td><td class="n">${s.proposed}</td><td class="n">${s.won}</td><td class="n">${pv(pct(s.won,s.visits))}${s.visits?'%':''}</td><td class="n">${pv(pct(s.won,s.visits-s.guide))}${s.visits-s.guide>0?'%':''}</td><td class="n">${s.satN>=5?s.sat:'—'}</td><td class="n">${s.satN}</td></tr>`),[1,2,3,4,5,6,7])}
+    <p class="sub">成約率と満足度を必ず並べて見ます。成約率だけが高く満足度が低い店舗は、売り方を確認する対象です。</p></div></section>`:''}
+  ${chart?`<section class="sec"><h2>日別の推移</h2><div class="box">${chart}</div></section>`:''}
+  <div class="grid2">
+    <section class="sec"><h2>来店区分別</h2><div class="box"><div class="legend"><span><i style="background:var(--blue)"></i>来店</span><span><i style="background:var(--ok)"></i>成約</span></div>${bars(R.byType.map(x=>({label:x.label,a:x.visits,b:x.won})),'a','b')}</div></section>
+    <section class="sec"><h2>年代別</h2><div class="box"><div class="legend"><span><i style="background:var(--blue)"></i>来店</span><span><i style="background:var(--ok)"></i>成約</span></div>${R.byAge.length?bars(R.byAge.map(x=>({label:x.age,a:x.visits,b:x.won})),'a','b'):'<p class="sub">この期間のヒアリングはありません。</p>'}</div></section>
+    <section class="sec"><h2>商材別</h2><div class="box"><div class="legend"><span><i style="background:var(--blue)"></i>提案した組</span><span><i style="background:var(--ok)"></i>獲得した組</span></div>${bars(R.byProduct.map(x=>({label:x.label,a:x.proposed,b:x.won})),'a','b')}</div></section>
+    <section class="sec"><h2>スタッフ別</h2><div class="box">${tbl(['スタッフ','店舗','接客','提案','獲得'],R.byStaff.map(s=>`<tr><td>${esc(s.name)}</td><td>${esc(s.shop)}</td><td class="n">${s.visits}</td><td class="n">${s.proposed}</td><td class="n">${s.won}</td></tr>`),[2,3,4])}
+      <p class="sub">順位づけのための表ではありません。提案が多く満足度が低い場合は、店舗別の満足度と合わせて確認します。</p></div></section>
+  </div>
+  <section class="sec"><h2>手続き・予約・お渡し・アンケート</h2><div class="box">
+    <div class="pills"><span class="pill">顧客登録の平均<b>${pv(pr.setupAvg)}</b>分</span><span class="pill">30分を超えた顧客登録<b>${pr.setupOver||0}</b>／${pr.setupN||0}件</span><span class="pill">データ移行の平均<b>${pv(pr.moveAvg)}</b>分</span><span class="pill">30分を超えたデータ移行<b>${pr.moveOver||0}</b>／${pr.moveN||0}件</span></div>
+    <div class="pills"><span class="pill">予約<b>${rv.total||0}</b>件</span><span class="pill">来店<b>${rv.came||0}</b>件</span><span class="pill">来店なし<b>${rv.noshow||0}</b>件</span><span class="pill">取消<b>${rv.cancel||0}</b>件</span><span class="pill">予約の来店率<b>${pv(pct(rv.came||0,(rv.came||0)+(rv.noshow||0)))}</b>${(rv.came||0)+(rv.noshow||0)?'%':''}</span></div>
+    <div class="pills"><span class="pill">見積書お渡し<b>${act.estimate||0}</b>件</span><span class="pill">名刺お渡し<b>${act.card||0}</b>件</span><span class="pill">見込み登録<b>${act.prospect||0}</b>件</span></div>
+    <div class="pills"><span class="pill">アンケート表示<b>${sAll.shown}</b>件</span><span class="pill">回答<b>${sAll.n}</b>件</span><span class="pill">対応<b>${pv(sAll.service)}</b>／5</span><span class="pill">説明の分かりやすさ<b>${pv(sAll.clarity)}</b>／5</span><span class="pill">また来たい<b>${pv(sAll.returnYes)}</b>${sAll.returnYes==null?'':'%'}</span></div>
+    <p class="sub">アンケートは集計だけを表示します。1件ずつの回答は、この画面には出ません。</p></div></section>
+  <section class="sec"><h2>記録の一覧（新しい順・40件）</h2><div class="box">${tbl(['日時','店舗','卓','来店区分','年代','ご用件','担当','提案','獲得','結果'],R.recent.map((r,i)=>`<tr class="${fresh.has(keys[i])?'new':''}"><td class="num">${md(r.at)} ${hm(r.at)}</td><td>${esc(r.shop)}</td><td>${esc(r.tbl)}</td><td>${esc(r.type)}</td><td>${esc(r.age||'—')}</td><td>${esc(r.purpose||'—')}</td><td>${esc(r.staff||'—')}</td><td class="n">${r.p}</td><td class="n">${r.w}</td><td>${r.phase!=='closed'?'<span class="chip open">接客中</span>':r.result==='won'?'<span class="chip won">成約</span>':'<span class="chip">成約なし</span>'}</td></tr>`),[7,8])}
+    <p class="sub">卓のiPadでボタンを押すたびに、ここへ1行ずつ増えていきます。前回の更新のあとに増えた行は、薄い青で表示します。お名前・電話番号は記録していません。</p></div></section>`;
+  const sel=$('shop-sel'); if(sel) sel.onchange=()=>{shop=sel.value; seen=null; load();};
+}
+document.addEventListener('click',e=>{const el=e.target.closest('[data-a]'); if(!el||el.disabled) return; const a=el.dataset.a;
+  if(a==='login') doLogin(); else if(a==='setpw') doSetPw(); else if(a==='demo') doDemo(); else if(a==='logout') logout();
+  else if(a==='days'){days=+el.dataset.v; seen=null; load();}});
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.tagName==='INPUT'){const b=$('lg-go'); if(b) b.click();}});
+setInterval(()=>{if(DEV&&R) load();},15000);
+load();
+</script>
+</body>
+</html>

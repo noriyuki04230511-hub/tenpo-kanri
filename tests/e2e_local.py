@@ -1,7 +1,7 @@
 import asyncio, json, re, subprocess, os
 from playwright.async_api import async_playwright
 P='file:///home/claude/tenpo-kanri/public/index.html'
-T={'p_device':'uuid','p_secret':'text','p_visit':'jsonb','p_resv':'jsonb','p_actor':'text','p_id':'uuid','p_kind':'text','p_company':'text','p_name':'text','p_op':'text','p_answered':'boolean','p_service':'integer','p_clarity':'integer','p_return':'text','p_label':'text'}
+T={'p_device':'uuid','p_secret':'text','p_visit':'jsonb','p_resv':'jsonb','p_actor':'text','p_id':'uuid','p_kind':'text','p_company':'text','p_name':'text','p_op':'text','p_answered':'boolean','p_service':'integer','p_clarity':'integer','p_return':'text','p_label':'text','p_password':'text','p_new':'text','p_old':'text','p_from':'date','p_to':'date','p_shop':'integer'}
 ENV=dict(os.environ,PGPASSWORD='x')
 OFF={'v':False}; CALLS={'n':0,'err':[]}
 def psql(sql,j=None,role=True):
@@ -16,7 +16,7 @@ async def handler(route):
     assert re.fullmatch(r'app_[a-z_]+',fn), fn
     assert req.headers.get('apikey'), 'no apikey'
     body=json.loads(req.post_data or '{}')
-    ty=lambda k:'uuid' if (fn=='app_survey' and k=='p_visit') else T[k]
+    ty=lambda k:'uuid' if (fn=='app_survey' and k=='p_visit') else 'text' if (k=='p_id' and fn in ('app_login','app_set_password','app_change_password')) else T[k]
     args=', '.join(f"{k} => "+(f"(:'j'::jsonb->'{k}')" if ty(k)=='jsonb' else f"(:'j'::jsonb->>'{k}')::{ty(k)}") for k in body)
     r=psql(f"set role anon;\nselect public.{fn}({args});\n",json.dumps(body))
     CALLS['n']+=1
@@ -27,7 +27,7 @@ async def handler(route):
 async def newpage(b,w,h):
     ctx=await b.new_context(viewport={'width':w,'height':h}); pg=await ctx.new_page(); errs=[]
     pg.on('pageerror',lambda e:errs.append(str(e)))
-    await pg.route('**/rest/v1/rpc/*',handler); await pg.goto(P); await pg.wait_for_selector('#add-table',timeout=15000)
+    await pg.route('**/rest/v1/rpc/*',handler); await pg.goto(P); await pg.click('#start-demo'); await pg.wait_for_selector('#add-table',timeout=15000)
     return pg,errs
 async def saved(pg): await pg.wait_for_function("document.getElementById('net').textContent==='保存済み'",timeout=20000)
 tiles=lambda pg: pg.locator('button.tile:not(.addt)')
@@ -85,15 +85,65 @@ async def run(b,tag,w,h):
     print(tag,'after reconnect:',admin("select v.visit_type||' '||v.phase||' h='||(select age_band from visit_hearings h where h.visit_id=v.id)||' prod='||(select count(*) from segment_products sp join visit_segments g on g.id=sp.segment_id where g.visit_id=v.id) from visits v where v.ended_at is null"))
     await pg.click('#serve-end'); await saved(pg)
     print(tag,'errors',errs); return pg
+K='file:///home/claude/tenpo-kanri/public/kanri.html'
+async def ov(pg,tag,n):
+    r=await pg.evaluate("({sw:document.documentElement.scrollWidth,cw:document.documentElement.clientWidth})")
+    if r['sw']>r['cw']+1: print(tag,n,'OVERFLOW',r)
+    await pg.screenshot(path=f'/home/claude/a_{tag}_{n}.png')
+async def run_login(b,tag,w,h,first):
+    ctx=await b.new_context(viewport={'width':w,'height':h}); pg=await ctx.new_page(); errs=[]
+    pg.on('pageerror',lambda e:errs.append(str(e)))
+    await pg.route('**/rest/v1/rpc/*',handler); await pg.goto(P); await pg.wait_for_selector('#lg-id'); await ov(pg,tag,'start')
+    PW='local-test-pass-1'
+    await pg.fill('#lg-id','shiken'); await pg.fill('#lg-pw','wrong-one'); await pg.click('#lg-go')
+    if first:
+        await pg.wait_for_selector('#lg-new'); await pg.fill('#lg-new','short'); await pg.fill('#lg-new2','short'); await pg.click('#lg-go'); print(tag,'short ->',await pg.text_content('#lg-err'))
+        await pg.fill('#lg-new',PW); await pg.fill('#lg-new2',PW+'x'); await pg.click('#lg-go'); print(tag,'mismatch ->',await pg.text_content('#lg-err'))
+        await pg.fill('#lg-new',PW); await pg.fill('#lg-new2',PW); await pg.click('#lg-go')
+    else:
+        await pg.wait_for_selector('#lg-err'); print(tag,'wrong pw ->',await pg.text_content('#lg-err'))
+        await pg.fill('#lg-pw',PW); await pg.click('#lg-go')
+    await pg.wait_for_selector('#add-table',timeout=15000)
+    print(tag,'logged in: shop',await pg.text_content('.b-box b'),'| bar',await pg.text_content('#who'),'| staff',await pg.locator('.person:not(.add)').count(),'| mgr tab',await pg.text_content('#mgr-label'),'| kanri link',await pg.locator('#to-kanri').count(),'| reset btn',await pg.locator('#demo-reset').count())
+    if await pg.locator('[data-a="clockin"]').count(): await pg.locator('[data-a="clockin"]').first.click()
+    if await tiles(pg).count()==0: await pg.click('#add-table'); await saved(pg)
+    await tiles(pg).nth(0).click(); await pg.locator('[data-a="recv"]').first.click(); await pg.click('#type-in_guide'); await pg.click('#p-support'); await pg.click('#serve-end'); await saved(pg)
+    await pg.click('#role-mgr'); print(tag,'table role: kpi tiles',await pg.locator('.kpi').count(),'title',await pg.text_content('#tb-t')); await ov(pg,tag,'notice')
+    await pg.click('#logout'); await pg.wait_for_selector('#lg-id'); print(tag,'after logout: start screen',await pg.locator('#start-demo').count()); print(tag,'login errors',errs); await ctx.close()
+async def run_kanri(b,tag,w,h,first):
+    ctx=await b.new_context(viewport={'width':w,'height':h}); pg=await ctx.new_page(); errs=[]
+    pg.on('pageerror',lambda e:errs.append(str(e)))
+    await pg.route('**/rest/v1/rpc/*',handler); await pg.goto(K); await pg.wait_for_selector('#lg-id'); await ov(pg,tag,'klogin')
+    await pg.click('#demo-go'); await pg.wait_for_selector('.kpi',timeout=20000); await ov(pg,tag,'kdemo')
+    print(tag,'demo: kpi',await pg.evaluate("[...document.querySelectorAll('.kpi .v')].map(e=>e.textContent).join(' / ')"),'| shops',await pg.evaluate("document.querySelector('table tbody').rows.length"),'| recent rows',await pg.evaluate("[...document.querySelectorAll('table')].pop().tBodies[0].rows.length"))
+    await pg.click('[data-a="days"][data-v="30"]'); await pg.wait_for_timeout(1500); print(tag,'30 days: kpi',await pg.evaluate("[...document.querySelectorAll('.kpi .v')].map(e=>e.textContent).join(' / ')"),'| bars',await pg.locator('svg rect').count()); await ov(pg,tag,'k30')
+    await pg.select_option('#shop-sel',index=2); await pg.wait_for_timeout(1500); print(tag,'one shop: shop table shown',await pg.evaluate("[...document.querySelectorAll('h2')].some(h=>h.textContent==='店舗別')"),'| kpi',await pg.evaluate("document.querySelector('.kpi .v').textContent"))
+    await pg.screenshot(path=f'/home/claude/a_{tag}_kfull.png',full_page=True)
+    await pg.click('[data-a="logout"]'); await pg.wait_for_selector('#lg-id')
+    await pg.fill('#lg-id','shiken'); await pg.fill('#lg-pw','local-test-pass-1'); await pg.click('#lg-go'); await pg.wait_for_selector('#lg-err'); print(tag,'table id on kanri ->',(await pg.text_content('#lg-err'))[:24])
+    await pg.fill('#lg-id','shiken-tencho'); await pg.fill('#lg-pw','x'); await pg.click('#lg-go')
+    await pg.wait_for_selector('#lg-new, #lg-err')
+    if await pg.locator('#lg-new').count():
+        await pg.fill('#lg-new','local-test-pass-2'); await pg.fill('#lg-new2','local-test-pass-2'); await pg.click('#lg-go')
+    else:
+        await pg.fill('#lg-pw','local-test-pass-2'); await pg.click('#lg-go')
+    await pg.wait_for_selector('.kpi',timeout=20000); await pg.click('[data-a="days"][data-v="1"]'); await pg.wait_for_timeout(1500)
+    print(tag,'manager: kpi',await pg.evaluate("[...document.querySelectorAll('.kpi .v')].map(e=>e.textContent).join(' / ')"),'| shop table',await pg.evaluate("[...document.querySelectorAll('h2')].some(h=>h.textContent==='店舗別')"),'| recent',await pg.evaluate("[...document.querySelectorAll('table')].pop().tBodies[0].rows[0].cells[3].textContent"),'| band',await pg.evaluate("document.querySelector('.band span').textContent"))
+    await ov(pg,tag,'kmgr'); print(tag,'kanri errors',errs); await ctx.close()
 async def main():
     async with async_playwright() as p:
         b=await p.chromium.launch(executable_path='/usr/bin/google-chrome',args=['--no-sandbox','--allow-file-access-from-files'])
+        import os
+        if os.environ.get('SKIP'):
+            await run_login(b,'t',1024,768,os.environ.get('SKIP')=='first'); await run_login(b,'m',390,844,False); await run_kanri(b,'t',1280,800,os.environ.get('SKIP')=='first'); await run_kanri(b,'m',390,844,False); print('rpc errors',CALLS['err'][:5]); await b.close(); return
         pg1=await run(b,'t',1024,768)
         admin("select public.app__demo_seed(9000,true)")
         pg2=await run(b,'m',390,844)
         await pg1.bring_to_front(); await pg1.wait_for_timeout(6000); await pg1.click('#role-mgr')
         print('device1 sees device2 data: kpi',await pg1.evaluate("[...document.querySelectorAll('.kpi .v')].map(e=>e.textContent).join('/')"))
         print('db: devices',admin("select count(*) from devices"),'visits',admin("select count(*)||' closed '||count(*) filter (where ended_at is not null) from visits"),'events',admin("select count(*) from events"),'surveys',admin("select count(*) from surveys"))
+        await run_login(b,'t',1024,768,True); await run_login(b,'m',390,844,False)
+        await run_kanri(b,'t',1280,800,True); await run_kanri(b,'m',390,844,False)
         print('rpc calls',CALLS['n'],'rpc errors',CALLS['err'][:5])
         await b.close()
 asyncio.run(main())

@@ -186,7 +186,9 @@ td.n{text-align:right;font-family:var(--num);font-size:19px;color:var(--blue)} t
 .err{color:var(--red);font-size:14px}
 input[type=date],input[type=time]{font:inherit;min-height:50px;border:1px solid var(--line);border-radius:4px;padding:8px 14px;background:#fff;color:var(--ink);width:100%}
 body.cust-mode{background:var(--surface);padding-bottom:0}
-body.cust-mode .tabs{display:none}
+body.cust-mode .tabs,body.start-mode .tabs,body.start-mode .demo{display:none}
+.demo a{min-height:32px;padding:4px 12px;border:1px solid #c9a53a;border-radius:4px;background:#fff;font-size:13px;color:inherit;text-decoration:none;display:inline-flex;align-items:center}
+input[type=password]{font:inherit;min-height:50px;border:1px solid var(--line);border-radius:4px;padding:8px 14px;background:#fff;color:var(--ink);width:100%}
 body.cust-mode main{max-width:920px;gap:28px;padding-top:28px}
 .paper{display:flex;flex-direction:column;gap:28px;font-weight:500}
 .paper .lead{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:15px;color:var(--ink2);font-weight:400}
@@ -226,14 +228,14 @@ label{font-size:14px;color:var(--ink2);display:flex;flex-direction:column;gap:6p
 </head>
 <body>
 <header class="topbar"><div class="l" id="tb-l"></div><h1 id="tb-t"></h1><div class="r" id="tb-r"></div></header>
-<div class="demo"><span id="net">接続しています</span><span>試作用のデータです（本物のお客様・スタッフではありません）</span><button id="demo-reset" data-a="reset">最初に戻す</button></div>
+<div class="demo"><span id="net"></span><span id="who"></span><span id="bar-btns" style="display:inline-flex;gap:8px;flex-wrap:wrap"></span></div>
 <div id="band"></div>
 <main id="app"></main>
 <div id="act"></div>
 <nav class="tabs" aria-label="画面の切り替え">
   <button class="tab" id="role-staff" data-a="tab" data-v="staff"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7"/><rect x="13.5" y="3.5" width="7" height="7"/><rect x="3.5" y="13.5" width="7" height="7"/><rect x="13.5" y="13.5" width="7" height="7"/></svg>卓のiPad</button>
   <button class="tab" id="role-resv" data-a="tab" data-v="resv"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="3.5" y="5.5" width="17" height="15"/><path d="M3.5 10h17M8 3v4.5M16 3v4.5"/></svg>予約</button>
-  <button class="tab" id="role-mgr" data-a="tab" data-v="mgr"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M4.5 20V10.5M10.5 20V4.5M16.5 20v-7M2.5 20h19"/></svg>店長</button>
+  <button class="tab" id="role-mgr" data-a="tab" data-v="mgr"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M4.5 20V10.5M10.5 20V4.5M16.5 20v-7M2.5 20h19"/></svg><span id="mgr-label">店長</span></button>
 </nav>
 <script>
 'use strict';
@@ -549,7 +551,17 @@ function stats(){
   return {visits,prop,won,per,pr,acts};
 }
 function viewMgr(){
-  const al=alerts(), st=stats(), mx=Math.max(1,...st.pr.map(r=>r.p));
+  const al=alerts();
+  if(S.devRole==='table'){
+    return {t:'お知らせ',band:`<div class="band"><div class="b-box"><span>店舗</span><b style="font-family:var(--ui);font-size:19px;line-height:2">${esc(S.shop.name||'')}</b></div>
+      <div class="b-main"><small>お知らせ</small><strong>${al.length?'確認が必要なことがあります':'確認が必要なことはありません'}</strong></div></div>`,
+     body:`<section class="sec"><h2>確認が必要なこと　${al.length}件</h2>
+      ${al.length?al.map(a=>`<div class="alert ${a.lv==='warn'?'w':''}"><span class="ic" aria-hidden="true">!</span><div><b>${esc(a.t)}</b><span>${esc(a.d)}</span></div></div>`).join(''):'<p class="sub" style="font-size:15px">いま確認が必要なことはありません。</p>'}</section>
+      <section class="sec"><h2>いまの卓</h2><div class="grid g3">${S.tables.map(t=>tile(t,true)).join('')}</div></section>
+      <section class="sec"><h2>予約</h2><div>${[...S.resv].sort((a,b)=>a.at-b.at).map(r=>resvRow(r,false)).join('')||'<p class="sub">予約はありません。</p>'}</div>
+      <p class="sub">数字の集計は、店長用・本部用のログインで管理画面から見られます。</p></section>`};
+  }
+  const st=stats(), mx=Math.max(1,...st.pr.map(r=>r.p));
   const band=`<div class="band"><div class="b-box"><span>店舗</span><b style="font-family:var(--ui);font-size:19px;line-height:2">${esc(S.shop.name||'')}</b></div>
     <div class="b-main"><small>店長の画面</small><strong>${al.length?'確認が必要なことがあります':'確認が必要なことはありません'}</strong></div>
     <div class="b-right"><div class="b-stat"><b>${st.visits}</b> 組<small>本日の来店</small></div><div class="b-stat"><b>${st.won}</b> 組<small>成約</small></div></div></div>`;
@@ -581,7 +593,13 @@ function viewMgr(){
 }
 
 function render(){
+  document.body.classList.toggle('start-mode',!DEV);
+  if(!DEV){renderStart();return;}
   if(!S.ready){document.getElementById('tb-t').textContent='店舗管理システム';document.getElementById('app').innerHTML='<p class="sub" style="font-size:16px">データベースに接続しています。数秒お待ちください。</p>';return;}
+  const tbl=S.devRole==='table';
+  document.getElementById('mgr-label').textContent=tbl?'お知らせ':'店長';
+  document.getElementById('who').textContent=S.shop.demo?'試作用のデータです（本物のお客様・スタッフではありません）':`${S.shop.name||''}（本番の記録）`;
+  document.getElementById('bar-btns').innerHTML=(S.shop.demo?'<button id="demo-reset" data-a="reset">最初に戻す</button>':'')+(tbl?'':'<a id="to-kanri" href="kanri.html">管理画面</a>')+'<button id="logout" data-a="logout">'+(S.shop.demo?'見本店を終わる':'ログアウト')+'</button>';
   const mgr=S.role==='mgr', cust=!mgr&&CUST.includes(S.screen), rsc=!mgr&&RSCREEN.includes(S.screen);
   const v=mgr?viewMgr():(views[S.screen]||views.home)();
   document.body.classList.toggle('cust-mode',cust);
@@ -669,16 +687,21 @@ const A={
    rpcQ('app_survey',{p_visit:V().id,p_answered:ok,p_service:ok?f.a:null,p_clarity:ok?f.b:null,p_return:ok?({'はい':'yes','どちらでもない':'neutral','いいえ':'no'})[f.c]:null});
    S.draft={}; S.screen='thanks'; },
  free(){closeVisit('won');},
- reset(){S.screen='home';S.hist=[];S.role='staff';rpcQ('app_reset_demo',{});}
+ reset(){S.screen='home';S.hist=[];S.role='staff';rpcQ('app_reset_demo',{});},
+ logout(){const d=DEV; if(d) call('app_logout',{p_device:d.device,p_secret:d.secret}).catch(()=>{}); reenroll();},
+ startdemo(){enrollDemo();},
+ login(){doLogin();},
+ setpw(){doSetPw();}
 };
 document.addEventListener('click',e=>{const el=e.target.closest('[data-a]'); if(!el||el.disabled) return; const a=el.dataset.a, f=A[a]; if(!f) return;
+  if(START.includes(a)){f(el.dataset);return;}
   if(!S.ready) return;
   const before=S.screen+S.role; if(SNAP.includes(a)) snap(); f(el.dataset);
   if(VSYNC.includes(a)){const v=V(); if(v) pushVisit(v);}
   render(); if(S.screen+S.role!==before) window.scrollTo(0,0);});
 function field(e){const d=e.target.dataset; if(d&&d.f){(d.g==='rf'?S.rf:S.help)[d.f]=e.target.value;}}
 document.addEventListener('input',field); document.addEventListener('change',field);
-setInterval(()=>{const a=document.activeElement; if(a&&(a.tagName==='INPUT'||a.tagName==='SELECT')) return; if(RSCREEN.includes(S.screen)&&S.screen==='resvnew'&&S.role==='staff') return; render();},20000);
+setInterval(()=>{if(!DEV) return; const a=document.activeElement; if(a&&(a.tagName==='INPUT'||a.tagName==='SELECT')) return; if(RSCREEN.includes(S.screen)&&S.screen==='resvnew'&&S.role==='staff') return; render();},20000);
 
 /* ---------- データベースとのやり取り ---------- */
 /* 下の鍵は「公開用の鍵」で、画面に置く前提のもの。これだけでは表を読めず、登録済みの端末として入口の関数を呼べるだけ */
@@ -688,7 +711,7 @@ let DEV=null, Q=[], busy=false, lastErr=false;
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const uuid=()=>(crypto.randomUUID?crypto.randomUUID():'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=crypto.getRandomValues(new Uint8Array(1))[0]&15;return (c==='x'?r:(r&3|8)).toString(16)}));
 const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}},del(k){try{localStorage.removeItem(k)}catch(e){}}};
-function net(){const el=document.getElementById('net'); if(!el) return; el.textContent=lastErr?'通信が切れています。つながり次第、自動で送ります':(busy||Q.length?'保存しています':'保存済み');}
+function net(){const el=document.getElementById('net'); if(!el) return; el.textContent=!DEV?'':lastErr?'通信が切れています。つながり次第、自動で送ります':(busy||Q.length?'保存しています':'保存済み');}
 async function call(fn,args){
   const r=await fetch(CFG.url+'/rpc/'+fn,{method:'POST',headers:{'Content-Type':'application/json',apikey:CFG.key},body:JSON.stringify(args)});
   if(!r.ok){const e=new Error('http '+r.status); e.status=r.status; e.body=await r.text().catch(()=>''); throw e;}
@@ -713,7 +736,7 @@ async function pump(){
 }
 function applyFloor(f){
   skew=f.now-Date.now();
-  S.staff=f.staff; S.tables=f.tables; S.closed=f.closed; S.resv=f.resv; S.feed=f.feed; S.surveys=f.surveys; S.surveyAvg=f.surveyAvg; S.shop=f.shop; S.ready=true;
+  S.devRole=f.role; S.staff=f.staff; S.tables=f.tables; S.closed=f.closed; S.resv=f.resv; S.feed=f.feed; S.surveys=f.surveys; S.surveyAvg=f.surveyAvg; S.shop=f.shop; S.ready=true;
   if(S.role==='staff'&&!['home','resv','resvnew','help'].includes(S.screen)){const t=T(); if(!t||(!t.v&&!['recv','type'].includes(S.screen))){S.screen='home'; S.hist=[];}}
   const a=document.activeElement; if(a&&(a.tagName==='INPUT'||a.tagName==='SELECT')) return;
   render();
@@ -724,15 +747,63 @@ async function poll(){
   catch(e){ if(String(e.body).includes('device_not_registered')) return reenroll(); lastErr=true; }
   net();
 }
-async function reenroll(){DEV=null; store.del('tk_dev'); Q=[]; store.set('tk_q',Q); return boot();}
+async function reenroll(){DEV=null; store.del('tk_dev'); Q=[]; store.set('tk_q',Q); init(); LG.v++; render();}
+/* ---------- 入口（ログイン／見本店） ---------- */
+const START=['login','setpw','startdemo'];
+const LG={mode:'login',err:'',id:'',busy:false,v:1};
+const LERR={login_failed:'IDまたはパスワードが違います。',locked:'5回続けて間違えたため、5分間はログインできません。',too_short:'パスワードは8文字以上にしてください。',already_set:'このIDのパスワードはすでに決まっています。ログインしてください。'};
+const label=()=>/iPad|Macintosh.*Mobile/.test(navigator.userAgent)?'iPad':/Mobi|Android|iPhone/.test(navigator.userAgent)?'スマホ':'パソコン';
+function renderStart(){
+  const app=document.getElementById('app'); document.getElementById('tb-t').textContent='店舗管理システム';
+  ['tb-l','tb-r','band','act','who','bar-btns'].forEach(id=>{document.getElementById(id).innerHTML='';}); net();
+  if(app.dataset.v===String(LG.v)) return; app.dataset.v=String(LG.v);
+  const setup=LG.mode==='setup';
+  app.innerHTML=`<section class="box" style="max-width:520px;width:100%;margin:0 auto"><h2>${setup?'最初のパスワードを決めます':'ログイン'}</h2>
+    ${setup?`<p class="sub">ID「${esc(LG.id)}」は、まだパスワードが決まっていません。8文字以上で決めてください。決めたパスワードは、この画面にも記録にも残りません。</p>
+      <label for="lg-new">新しいパスワード<input type="password" id="lg-new" autocomplete="new-password"></label>
+      <label for="lg-new2">もう一度入力<input type="password" id="lg-new2" autocomplete="new-password"></label>`
+     :`<label for="lg-id">ID<input type="text" id="lg-id" autocomplete="username" autocapitalize="none" spellcheck="false" value="${esc(LG.id)}"></label>
+      <label for="lg-pw">パスワード<input type="password" id="lg-pw" autocomplete="current-password"></label>`}
+    ${LG.err?`<p class="err" id="lg-err">${esc(LG.err)}</p>`:''}
+    <div class="row"><button class="btn" id="lg-go" data-a="${setup?'setpw':'login'}" ${LG.busy?'disabled':''}>${setup?'このパスワードに決める':'ログイン'}${CHEV}</button></div></section>
+  <section class="box" style="max-width:520px;width:100%;margin:0 auto"><h2>見本で試す</h2>
+    <p class="sub">ログインなしで、見本データを使って操作を試せます。本物のお客様・スタッフのデータは入っていません。</p>
+    <div class="row"><button class="btn line" id="start-demo" data-a="startdemo" ${LG.busy?'disabled':''}>見本店で試す</button><a class="btn line" id="start-kanri" href="kanri.html" style="text-decoration:none">管理画面のデモを見る</a></div></section>`;
+}
+function lgSet(o){Object.assign(LG,o); LG.v++; render();}
+async function entered(d){DEV={device:d.device,secret:d.secret,role:d.role}; store.set('tk_dev',DEV); LG.mode='login'; LG.err=''; LG.busy=false; LG.v++;
+  if(d.role==='hq'){location.href='kanri.html';return;} init(); render(); await poll(); pump();}
+async function doLogin(){
+  const id=(document.getElementById('lg-id').value||'').trim(), pw=document.getElementById('lg-pw').value||'';
+  if(!id){return lgSet({err:'IDを入力してください。'});}
+  lgSet({busy:true,err:'',id});
+  try{const r=await call('app_login',{p_id:id,p_password:pw,p_label:label()});
+    if(r.need_setup) return lgSet({mode:'setup',busy:false,err:''});
+    if(r.error) return lgSet({busy:false,err:LERR[r.error]||'ログインできませんでした。'});
+    await entered(r);
+  }catch(e){lgSet({busy:false,err:'通信できませんでした。もう一度お試しください。'});}
+}
+async function doSetPw(){
+  const a=document.getElementById('lg-new').value||'', b=document.getElementById('lg-new2').value||'';
+  if(a.length<8) return lgSet({err:LERR.too_short});
+  if(a!==b) return lgSet({err:'2つの入力が同じではありません。'});
+  lgSet({busy:true,err:''});
+  try{const r=await call('app_set_password',{p_id:LG.id,p_new:a});
+    if(r.error) return lgSet({busy:false,mode:r.error==='already_set'?'login':'setup',err:LERR[r.error]||'設定できませんでした。'});
+    const l=await call('app_login',{p_id:LG.id,p_password:a,p_label:label()});
+    if(l.error||l.need_setup) return lgSet({busy:false,mode:'login',err:'パスワードを決めました。ログインしてください。'});
+    await entered(l);
+  }catch(e){lgSet({busy:false,err:'通信できませんでした。もう一度お試しください。'});}
+}
+async function enrollDemo(){
+  lgSet({busy:true,err:''});
+  try{const d=await call('app_enroll_demo',{p_label:label()}); await entered({...d,role:d.role||'demo'});}
+  catch(e){lgSet({busy:false,err:'通信できませんでした。もう一度お試しください。'});}
+}
 async function boot(){
   DEV=DEV||store.get('tk_dev',null); if(!Q.length) Q=store.get('tk_q',[]);
-  render();
-  while(!DEV){
-    try{const kind=/iPad|Macintosh.*Mobile/.test(navigator.userAgent)?'iPad':/Mobi|Android|iPhone/.test(navigator.userAgent)?'スマホ':'パソコン';
-      DEV=await call('app_enroll_demo',{p_label:kind}); store.set('tk_dev',DEV); lastErr=false;}
-    catch(e){lastErr=true; net(); await sleep(4000);}
-  }
+  if(DEV&&DEV.role==='hq'){location.href='kanri.html';return;}
+  render(); if(!DEV) return;
   await poll(); pump();
 }
 init(); boot(); setInterval(poll,5000);
