@@ -60,6 +60,28 @@ td.w{white-space:normal;min-width:120px}
 .chip{font-size:12px;border:1px solid var(--line);border-radius:3px;padding:1px 8px;color:var(--ink2)}
 .chip.won{border-color:var(--ok);color:var(--ok)} .chip.open{border-color:var(--blue);color:#fff;background:var(--blue)}
 tr.new td{background:var(--tint)}
+.tabs2{display:flex;flex-wrap:wrap;gap:6px}
+.tabs2 button{min-height:44px;padding:6px 18px;border:1px solid var(--blue);border-radius:4px;color:var(--blue);background:var(--surface);font-size:14.5px}
+.tabs2 button[aria-pressed="true"]{background:var(--blue);color:#fff;font-weight:500}
+.tabs2.sm button{min-height:40px;padding:4px 12px;font-size:13.5px;border-color:var(--line);color:var(--ink2)}
+.tabs2.sm button[aria-pressed="true"]{background:var(--tint);border-color:var(--blue);color:var(--blue-deep)}
+.mx th:first-child,.mx td:first-child{position:sticky;left:0;z-index:1;background:var(--surface);border-right:1px solid var(--line)}
+.mx th:first-child{background:var(--bg)}
+.mx td{vertical-align:top}
+.mx td.nm{white-space:normal;min-width:118px;max-width:170px}
+.mx td.nm button{color:var(--blue);text-decoration:underline;text-underline-offset:3px;text-align:left;font-size:14px;min-height:28px}
+.mx td.nm small{display:block;font-size:11.5px;color:var(--ink2)}
+.mx td.c{text-align:right;min-width:76px}
+.mx td.c b{font-family:var(--num);font-weight:400;font-size:18px;color:var(--blue)}
+.mx td.c b i{font-style:normal;font-size:11px;margin-left:1px}
+.mx td.c small{display:block;font-family:var(--num);font-size:11.5px;color:var(--ink2)}
+.mx td.c.thin b,td.n.thin{color:#9aa5af}
+.mx td.c.hi b::before{content:"▲";font-size:10px;color:var(--ok);margin-right:3px}
+.mx td.c.lo b::before{content:"▼";font-size:10px;color:var(--amber);margin-right:3px}
+.mx tr.ref td{background:var(--bg);font-weight:500} .mx tr.ref td:first-child{background:var(--bg)}
+.mx tr.sel td,.mx tr.sel td:first-child{background:var(--tint)}
+.dt{border-top:1px solid var(--line);padding-top:14px;display:flex;flex-direction:column;gap:10px}
+.dt h3{font-size:14.5px;font-weight:700}
 .btn{min-height:50px;padding:10px 22px;border-radius:4px;font-size:15.5px;font-weight:500;background:var(--accent);color:#fff;display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
 .btn.line{background:var(--surface);color:var(--blue);border:1px solid var(--blue)}
 .btn[disabled]{background:var(--off);color:#8b96a1;cursor:not-allowed}
@@ -88,7 +110,7 @@ const CFG={url:'https://egpibhkwemssnanalfoh.supabase.co/rest/v1',key:'sb_publis
 const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}},del(k){try{localStorage.removeItem(k)}catch(e){}}};
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const $=id=>document.getElementById(id);
-let DEV=store.get('tk_dev',null), R=null, days=7, shop='', seen=null, lastAt=0, failed=false;
+let DEV=store.get('tk_dev',null), R=null, days=7, shop='', seen=null, lastAt=0, failed=false, lvl='all', met='close', pick=null;
 const LG={mode:'login',err:'',id:'',busy:false};
 const LERR={login_failed:'IDまたはパスワードが違います。',locked:'5回続けて間違えたため、5分間はログインできません。',too_short:'パスワードは8文字以上にしてください。',already_set:'このIDのパスワードはすでに決まっています。ログインしてください。'};
 async function call(fn,args){
@@ -103,6 +125,49 @@ const pct=(a,b)=>b>0?Math.round(a/b*1000)/10:null;
 const pv=v=>v==null?'—':v;
 function tbl(cols,rows,num){return `<div class="scroll"><table><thead><tr>${cols.map((c,i)=>`<th${num.includes(i)?' class="n"':''}>${c}</th>`).join('')}</tr></thead><tbody>${rows.join('')||`<tr><td colspan="${cols.length}" class="sub">この期間の記録はありません。</td></tr>`}</tbody></table></div>`;}
 function bars(list,a,b){const mx=Math.max(1,...list.map(x=>x[a]));return `<div class="barrow">${list.map(x=>`<span>${esc(x.label)}</span><span class="bars"><span class="b1" style="width:${x[a]/mx*100}%"></span><span class="b2" style="width:${x[b]/mx*100}%"></span></span><span class="v">${x[a]}／${x[b]}</span>`).join('')}</div>`;}
+
+/* 商材別の成績。p＝提案した組、w＝獲得した組、q＝獲得した件数。率はすべて「組」で計算する */
+const METS=[['close','成約率（獲得÷提案）'],['visit','あたり獲得率'],['prop','提案率'],['qty','獲得件数']];
+const cellOf=(row,k)=>(row.cells&&row.cells[k])||{p:0,w:0,q:0};
+const pc=(a,b)=>b>0?pct(a,b)+'%':'—';
+const pkey=r=>r.name+'|'+(r.sub||'');
+function val(row,k){const c=cellOf(row,k);
+  if(met==='close') return {v:pct(c.w,c.p),den:c.p,sub:`${c.w}／${c.p}組`};
+  if(met==='visit') return {v:pct(c.w,row.visits),den:row.visits,sub:`${c.w}組`};
+  if(met==='prop') return {v:pct(c.p,row.visits),den:row.visits,sub:`${c.p}組`};
+  return {v:c.q,den:99,sub:`${c.w}組`};}
+function matrix(rows,all,first,vlabel){
+  const P=R.products||[];
+  const line=(row,i,ref)=>`<tr class="${ref?'ref':pick===pkey(row)?'sel':''}"><td class="nm">${ref?esc(row.name):`<button data-a="pick" data-v="${i}" aria-pressed="${pick===pkey(row)}">${esc(row.name)}</button>`}${row.sub?`<small>${esc(row.sub)}</small>`:''}</td><td class="n">${row.visits}</td>${P.map(p=>{
+      const x=val(row,p.k), a=val(all,p.k); let cls='c';
+      if(met!=='qty'&&x.v!=null){ if(x.den<5) cls+=' thin'; else if(!ref&&a.v!=null&&x.den>=10&&a.den>=10){ if(x.v>=a.v+10) cls+=' hi'; else if(x.v<=a.v-10) cls+=' lo'; } }
+      return `<td class="${cls}"><b>${x.v==null?'—':`${x.v}<i>${met==='qty'?'件':'%'}</i>`}</b><small>${x.sub}</small></td>`}).join('')}</tr>`;
+  return `<div class="scroll"><table class="mx" id="mx"><thead><tr><th>${first}</th><th class="n">${vlabel}</th>${P.map(p=>`<th class="n">${esc(p.short)}</th>`).join('')}</tr></thead><tbody>${line(all,-1,true)}${rows.map((r,i)=>line(r,i,false)).join('')||`<tr><td colspan="${P.length+2}" class="sub">この期間の記録はありません。</td></tr>`}</tbody></table></div>`;
+}
+function detail(row,unit){
+  const g=(n,den)=>`<td class="n${den>0&&den<5?' thin':''}">${n}</td>`;
+  return tbl(['商材','提案した組','提案率','獲得した組','成約率（獲得÷提案）',unit+'あたり獲得率','獲得件数','1組あたり件数'],(R.products||[]).map(p=>{const c=cellOf(row,p.k);
+    return `<tr><td>${esc(p.label)}</td><td class="n">${c.p}</td>${g(pc(c.p,row.visits),row.visits)}<td class="n">${c.w}</td>${g(pc(c.w,c.p),c.p)}${g(pc(c.w,row.visits),row.visits)}<td class="n">${c.q}</td><td class="n">${c.w?Math.round(c.q/c.w*100)/100:'—'}</td></tr>`}),[1,2,3,4,5,6,7]);
+}
+function prodSection(){
+  const pr=R.prod; if(!pr) return '';
+  const mgr=R.role==='manager', one=mgr||!!shop;
+  const LV=mgr?[['all','店舗の合計'],['staff','個人']]:[['all',shop?'選んだ店舗の合計':'全体'],['areas','エリア'],['shops','店舗'],['staff','個人']];
+  if(!LV.some(l=>l[0]===lvl)) lvl='all';
+  const all={...pr.all,name:LV[0][1]}, rows=lvl==='all'?[]:(pr[lvl]||[]), staff=lvl==='staff', unit=staff?'接客':'来店';
+  const sel=pick==null?null:rows.find(r=>pkey(r)===pick)||null; if(!sel) pick=null;
+  const lvBtn=`<div class="tabs2" role="group" aria-label="見る単位">${LV.map(([k,l])=>`<button id="lv-${k}" data-a="lvl" data-v="${k}" aria-pressed="${lvl===k}">${l}</button>`).join('')}</div>`;
+  const car=cellOf(all,'carrier');
+  const head=`<div class="pills"><span class="pill">来店<b>${all.visits}</b>組</span><span class="pill">携帯の成約率（獲得÷提案）<b>${pc(car.w,car.p)}</b></span><span class="pill">携帯の来店あたり獲得率<b>${pc(car.w,all.visits)}</b></span><span class="pill">携帯の獲得<b>${car.w}</b>組・<b>${car.q}</b>件</span></div>`;
+  let body;
+  if(lvl==='all') body=`<div class="dt" style="border-top:none;padding-top:0"><h3>${esc(all.name)}：来店 ${all.visits}組</h3>${detail(all,'来店')}</div>`;
+  else body=`<div class="tabs2 sm" role="group" aria-label="表に出す数字">${METS.map(([k,l])=>`<button id="mt-${k}" data-a="met" data-v="${k}" aria-pressed="${met===k}">${k==='visit'?unit+l+'（獲得÷'+unit+'）':k==='prop'?l+'（提案÷'+unit+'）':l}</button>`).join('')}</div>
+    ${matrix(rows,all,staff?'スタッフ':lvl==='shops'?'店舗':'エリア',unit+'（組）')}
+    <p class="sub">名前を押すと、その${staff?'人':lvl==='shops'?'店舗':'エリア'}の全商材の内訳を下に表示します。▲▼は一番上の行（${esc(all.name)}）より10ポイント以上高い・低い数字です。▲▼は分母が10組以上の数字にだけ付けます。分母が5組未満の数字は灰色（参考値）です。</p>
+    ${sel?`<div class="dt" id="dt"><h3>${esc(sel.name)}${sel.sub?`（${esc(sel.sub)}）`:''}：${unit} ${sel.visits}組</h3>${detail(sel,unit)}</div>`:''}`;
+  return `<section class="sec" id="prod"><h2>商材別の成績（全体・エリア・店舗・個人）</h2><div class="box">${lvBtn}${head}${body}
+    <p class="sub">数え方：来店も成約率も「組」で数えます。1組で携帯を2件獲得しても、成約は1組・獲得件数は2件です。成約率＝獲得した組÷提案した組。あたり獲得率＝獲得した組÷来店（個人は接客）した組。提案率＝提案した組÷来店した組。${staff?'個人の数字は、その人が担当していた間に押された「提案した」「獲得した」の分です。順位づけではなく、提案の偏りを見つけるために使います。':''}</p></div></section>`;
+}
 
 function renderLogin(){
   $('top-r').innerHTML='<a class="link" href="./">卓の画面へ</a>'; $('note').innerHTML=''; $('band').innerHTML='';
@@ -157,7 +222,7 @@ async function load(){
 }
 function render(){
   if(!R){$('app').innerHTML='<p class="sub">読み込んでいます。</p>';return;}
-  const demo=R.role==='demo', t=R.total, shops=R.allShops||[];
+  const demo=R.role==='demo', t=R.total, shops=R.allShops||[], keepX=$('mx')?$('mx').parentElement.scrollLeft:0;
   $('top-r').innerHTML=`<a class="link" href="./">卓の画面へ</a><button class="link" data-a="logout">${demo?'デモを終わる':'ログアウト'}</button>`;
   $('note').innerHTML=demo?'<div class="note">見本データです（本物のお客様・スタッフではありません）。別の端末で「見本店で試す」を操作すると、15秒以内に「見本店」の数字と下の「記録の一覧」に反映されます。</div>':'';
   $('band').innerHTML=`<div class="band"><div class="grp" role="group" aria-label="期間">${[[1,'今日'],[7,'7日間'],[30,'30日間']].map(([d,l])=>`<button data-a="days" data-v="${d}" aria-pressed="${days===d}">${l}</button>`).join('')}</div>
@@ -174,13 +239,13 @@ function render(){
   $('app').innerHTML=`
   <section class="sec"><h2>全体の数字</h2><div class="kpis">${kp.map(([l,v,u])=>`<div class="kpi"><div class="v">${v}${v==='—'?'':`<small>${u}</small>`}</div><div class="l">${l}</div></div>`).join('')}</div>
     <p class="sub">成約率は「成約した組 ÷ 来店」。操作説明を除くほうは、来店区分「インバウンド操作説明（サポート会員ヒアリングなし）」${t.guide}組を分母から除いています。満足度はアンケートの回答が5件以上のときだけ表示します（この期間の回答 ${sAll.n}件）。</p></section>
-  ${R.byShop.length>1?`<section class="sec"><h2>店舗別</h2><div class="box">${tbl(['店舗','来店','提案','成約','成約率（含む）','成約率（除く）','満足度','回答'],R.byShop.map(s=>`<tr><td>${esc(s.name)}</td><td class="n">${s.visits}</td><td class="n">${s.proposed}</td><td class="n">${s.won}</td><td class="n">${pv(pct(s.won,s.visits))}${s.visits?'%':''}</td><td class="n">${pv(pct(s.won,s.visits-s.guide))}${s.visits-s.guide>0?'%':''}</td><td class="n">${s.satN>=5?s.sat:'—'}</td><td class="n">${s.satN}</td></tr>`),[1,2,3,4,5,6,7])}
+  ${R.byShop.length>1?`<section class="sec"><h2>店舗別</h2><div class="box">${tbl(['店舗','エリア','来店','提案','成約','成約率（含む）','成約率（除く）','満足度','回答'],R.byShop.map(s=>`<tr><td>${esc(s.name)}</td><td>${esc(s.area||'—')}</td><td class="n">${s.visits}</td><td class="n">${s.proposed}</td><td class="n">${s.won}</td><td class="n">${pv(pct(s.won,s.visits))}${s.visits?'%':''}</td><td class="n">${pv(pct(s.won,s.visits-s.guide))}${s.visits-s.guide>0?'%':''}</td><td class="n">${s.satN>=5?s.sat:'—'}</td><td class="n">${s.satN}</td></tr>`),[2,3,4,5,6,7,8])}
     <p class="sub">成約率と満足度を必ず並べて見ます。成約率だけが高く満足度が低い店舗は、売り方を確認する対象です。</p></div></section>`:''}
+  ${prodSection()}
   ${chart?`<section class="sec"><h2>日別の推移</h2><div class="box">${chart}</div></section>`:''}
   <div class="grid2">
     <section class="sec"><h2>来店区分別</h2><div class="box"><div class="legend"><span><i style="background:var(--blue)"></i>来店</span><span><i style="background:var(--ok)"></i>成約</span></div>${bars(R.byType.map(x=>({label:x.label,a:x.visits,b:x.won})),'a','b')}</div></section>
     <section class="sec"><h2>年代別</h2><div class="box"><div class="legend"><span><i style="background:var(--blue)"></i>来店</span><span><i style="background:var(--ok)"></i>成約</span></div>${R.byAge.length?bars(R.byAge.map(x=>({label:x.age,a:x.visits,b:x.won})),'a','b'):'<p class="sub">この期間のヒアリングはありません。</p>'}</div></section>
-    <section class="sec"><h2>商材別</h2><div class="box"><div class="legend"><span><i style="background:var(--blue)"></i>提案した組</span><span><i style="background:var(--ok)"></i>獲得した組</span></div>${bars(R.byProduct.map(x=>({label:x.label,a:x.proposed,b:x.won})),'a','b')}</div></section>
     <section class="sec"><h2>スタッフ別</h2><div class="box">${tbl(['スタッフ','店舗','接客','提案','獲得'],R.byStaff.map(s=>`<tr><td>${esc(s.name)}</td><td>${esc(s.shop)}</td><td class="n">${s.visits}</td><td class="n">${s.proposed}</td><td class="n">${s.won}</td></tr>`),[2,3,4])}
       <p class="sub">順位づけのための表ではありません。提案が多く満足度が低い場合は、店舗別の満足度と合わせて確認します。</p></div></section>
   </div>
@@ -190,13 +255,17 @@ function render(){
     <div class="pills"><span class="pill">見積書お渡し<b>${act.estimate||0}</b>件</span><span class="pill">名刺お渡し<b>${act.card||0}</b>件</span><span class="pill">見込み登録<b>${act.prospect||0}</b>件</span></div>
     <div class="pills"><span class="pill">アンケート表示<b>${sAll.shown}</b>件</span><span class="pill">回答<b>${sAll.n}</b>件</span><span class="pill">対応<b>${pv(sAll.service)}</b>／5</span><span class="pill">説明の分かりやすさ<b>${pv(sAll.clarity)}</b>／5</span><span class="pill">また来たい<b>${pv(sAll.returnYes)}</b>${sAll.returnYes==null?'':'%'}</span></div>
     <p class="sub">アンケートは集計だけを表示します。1件ずつの回答は、この画面には出ません。</p></div></section>
-  <section class="sec"><h2>記録の一覧（新しい順・40件）</h2><div class="box">${tbl(['日時','店舗','卓','来店区分','年代','ご用件','担当','提案','獲得','結果'],R.recent.map((r,i)=>`<tr class="${fresh.has(keys[i])?'new':''}"><td class="num">${md(r.at)} ${hm(r.at)}</td><td>${esc(r.shop)}</td><td>${esc(r.tbl)}</td><td>${esc(r.type)}</td><td>${esc(r.age||'—')}</td><td>${esc(r.purpose||'—')}</td><td>${esc(r.staff||'—')}</td><td class="n">${r.p}</td><td class="n">${r.w}</td><td>${r.phase!=='closed'?'<span class="chip open">接客中</span>':r.result==='won'?'<span class="chip won">成約</span>':'<span class="chip">成約なし</span>'}</td></tr>`),[7,8])}
+  <section class="sec"><h2>記録の一覧（新しい順・40件）</h2><div class="box">${tbl(['日時','店舗','卓','来店区分','年代','ご用件','担当','提案','獲得','結果'],R.recent.map((r,i)=>`<tr class="${fresh.has(keys[i])?'new':''}"><td class="num">${md(r.at)} ${hm(r.at)}</td><td>${esc(r.shop)}</td><td>${esc(r.tbl)}</td><td>${esc(r.type)}</td><td>${esc(r.age||'—')}</td><td>${esc(r.purpose||'—')}</td><td>${esc(r.staff||'—')}</td><td class="n">${r.p}</td><td class="n">${r.w}${r.q>r.w?`<small style="font-size:12px">（${r.q}件）</small>`:''}</td><td>${r.phase!=='closed'?'<span class="chip open">接客中</span>':r.result==='won'?'<span class="chip won">成約</span>':'<span class="chip">成約なし</span>'}</td></tr>`),[7,8])}
     <p class="sub">卓のiPadでボタンを押すたびに、ここへ1行ずつ増えていきます。前回の更新のあとに増えた行は、薄い青で表示します。お名前・電話番号は記録していません。</p></div></section>`;
-  const sel=$('shop-sel'); if(sel) sel.onchange=()=>{shop=sel.value; seen=null; load();};
+  if(keepX&&$('mx')) $('mx').parentElement.scrollLeft=keepX;
+  const sel=$('shop-sel'); if(sel) sel.onchange=()=>{shop=sel.value; seen=null; pick=null; load();};
 }
 document.addEventListener('click',e=>{const el=e.target.closest('[data-a]'); if(!el||el.disabled) return; const a=el.dataset.a;
   if(a==='login') doLogin(); else if(a==='setpw') doSetPw(); else if(a==='demo') doDemo(); else if(a==='logout') logout();
-  else if(a==='days'){days=+el.dataset.v; seen=null; load();}});
+  else if(a==='days'){days=+el.dataset.v; seen=null; pick=null; load();}
+  else if(a==='lvl'){lvl=el.dataset.v; pick=null; render();}
+  else if(a==='met'){met=el.dataset.v; render();}
+  else if(a==='pick'){const r=((R.prod||{})[lvl]||[])[+el.dataset.v], k=r?pkey(r):null; pick=pick===k?null:k; render(); const d=$('dt'); if(d) d.scrollIntoView({block:'nearest',behavior:'smooth'});}});
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.tagName==='INPUT'){const b=$('lg-go'); if(b) b.click();}});
 setInterval(()=>{if(DEV&&R) load();},15000);
 load();

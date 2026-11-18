@@ -128,6 +128,11 @@ button.tile:hover,.pickc:hover{border-color:var(--blue)}
 .tg.b{border-color:var(--ok);color:var(--ok)}
 .tg.b[aria-pressed="true"]{background:var(--ok);color:#fff}
 .tg.auto{min-width:0}
+.qty{flex:1 1 100%;display:flex;align-items:center;justify-content:flex-end;gap:10px;font-size:14px;color:var(--ink2)}
+.qty button{width:46px;height:46px;border:1px solid var(--ok);border-radius:4px;color:var(--ok);font-size:24px;line-height:1;background:var(--surface)}
+.qty button[disabled]{border-color:var(--off);color:#b3bcc5;cursor:not-allowed}
+.qty b{font-family:var(--num);font-weight:400;font-size:26px;color:var(--ok);min-width:56px;text-align:center}
+.qty b small{font-family:var(--ui);font-size:13px;margin-left:2px}
 
 #act{position:sticky;bottom:var(--tabs);z-index:4}
 .action{background:var(--blue);color:#fff;display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px;padding:14px 24px}
@@ -303,6 +308,8 @@ const staffName=id=>{const s=S.staff.find(x=>x.id===id);return s?s.name:'—'};
 const typeOf=k=>TYPES.find(x=>x.k===k);
 const onDuty=()=>S.staff.filter(s=>s.inAt);
 const seg=v=>v.segs[v.segs.length-1];
+const qn=(g,k)=>(g.q&&+g.q[k])||1; /* 獲得の件数。入力がなければ1 */
+const wq=g=>g.w.reduce((a,k)=>a+qn(g,k),0);
 const prod=k=>PRODS.find(p=>p.k===k).n;
 const tnum=t=>t.name.replace('卓','');
 
@@ -382,7 +389,8 @@ function checklist(v,sg,after){
   const list=PRODS.filter(p=>!(after&&p.k==='carrier'));
   return `<div>${list.map(p=>`<div class="cl-row"><div class="cl-name">${p.n}</div>
       <div class="seg"><button class="tg a" id="p-${p.k}" aria-pressed="${sg.p.includes(p.k)}" data-a="prop" data-v="${p.k}">${CHK}提案した</button>
-      <button class="tg b" id="w-${p.k}" aria-pressed="${sg.w.includes(p.k)}" data-a="win" data-v="${p.k}">${CHK}獲得した</button></div></div>`).join('')}</div>
+      <button class="tg b" id="w-${p.k}" aria-pressed="${sg.w.includes(p.k)}" data-a="win" data-v="${p.k}">${CHK}獲得した</button></div>
+      ${sg.w.includes(p.k)?`<div class="qty" id="q-${p.k}"><span>件数（1組で2件以上のときだけ増やす）</span><button id="qm-${p.k}" data-a="qty" data-v="${p.k}" data-d="-1" aria-label="${p.n}の件数を1減らす" ${qn(sg,p.k)<=1?'disabled':''}>−</button><b id="qv-${p.k}">${qn(sg,p.k)}<small>件</small></b><button id="qp-${p.k}" data-a="qty" data-v="${p.k}" data-d="1" aria-label="${p.n}の件数を1増やす" ${qn(sg,p.k)>=20?'disabled':''}>＋</button></div>`:''}</div>`).join('')}</div>
     <div class="sec" style="gap:10px"><h2>お渡し・見込み</h2>
     <div class="row">${ACTS.map(a=>`<button class="tg a auto" id="act-${a.k}" aria-pressed="${(sg.a||[]).includes(a.k)}" data-a="act" data-v="${a.k}">${CHK}${a.n}</button>`).join('')}</div></div>`;
 }
@@ -497,7 +505,7 @@ serve(){
    <section class="box"><h2>提案した商材・獲得した商材</h2>
     ${v.segs.length>1?`<p class="sub">${v.segs.slice(0,-1).map(x=>`${esc(staffName(x.sid))}さんの分：提案${x.p.length}・獲得${x.w.length}`).join('　')}　／　ここからは${esc(staffName(sg.sid))}さんの分です</p>`:''}
     ${checklist(v,sg,false)}</section></div>`;
-  const act=`<div class="action"><div class="sum"><span>提案<b>${sg.p.length}</b></span><span>獲得<b>${sg.w.length}</b></span></div>
+  const act=`<div class="action"><div class="sum"><span>提案<b>${sg.p.length}</b></span><span>獲得<b>${sg.w.length}</b>${wq(sg)>sg.w.length?`<small>（${wq(sg)}件）</small>`:''}</span></div>
     <button class="btn onblue" id="serve-end" data-a="end">成約なしで終了</button>
     <button class="btn onblue" id="serve-change" data-a="change">担当変更</button>
     <button class="btn" id="serve-won" data-a="won">成約へ${CHEV}</button></div>`;
@@ -519,7 +527,7 @@ after(){
     <p class="sub">${esc(staffName(sg.sid))}さんの分として記録します。携帯の契約は、成約済みのためここには出しません。これまでの獲得：${v.segs.slice(0,-1).flatMap(x=>x.w).map(prod).join('、')||'チェックなし'}</p>
     ${checklist(v,sg,true)}</section>
   <p class="sub">顧客登録とデータ移行の両方が終わると、自動でお客様アンケートに切り替わります。提案・獲得のチェックを先に済ませてください。アンケートが終わるまで、卓は空きになりません。</p>`;
-  const act=`<div class="action"><div class="sum"><span>提案<b>${sg.p.length}</b></span><span>獲得<b>${sg.w.length}</b></span></div><button class="btn onblue" id="after-change" data-a="change">担当変更</button></div>`;
+  const act=`<div class="action"><div class="sum"><span>提案<b>${sg.p.length}</b></span><span>獲得<b>${sg.w.length}</b>${wq(sg)>sg.w.length?`<small>（${wq(sg)}件）</small>`:''}</span></div><button class="btn onblue" id="after-change" data-a="change">担当変更</button></div>`;
   return {t:'成約後の手続き',band:ctxBand(),body,act};
 },
 survey(){
@@ -546,7 +554,7 @@ function stats(){
   const won=all.filter(v=>v.result==='won').length;
   const per=S.staff.map(s=>{const mine=all.filter(v=>v.segs.some(x=>x.sid===s.id));
     return {n:s.name,v:mine.length,p:mine.filter(v=>v.segs.some(x=>x.sid===s.id&&x.p.length)).length,w:mine.filter(v=>v.segs.some(x=>x.sid===s.id&&x.w.length)).length}});
-  const pr=PRODS.map(p=>({n:p.n,p:all.reduce((a,v)=>a+v.segs.filter(x=>x.p.includes(p.k)).length,0),w:all.reduce((a,v)=>a+v.segs.filter(x=>x.w.includes(p.k)).length,0)}));
+  const pr=PRODS.map(p=>({n:p.n,p:all.reduce((a,v)=>a+v.segs.filter(x=>x.p.includes(p.k)).length,0),w:all.reduce((a,v)=>a+v.segs.reduce((b,x)=>b+(x.w.includes(p.k)?qn(x,p.k):0),0),0)}));
   const acts=ACTS.map(a=>({n:a.n,c:all.reduce((x,v)=>x+v.segs.filter(g=>(g.a||[]).includes(a.k)).length,0)}));
   return {visits,prop,won,per,pr,acts};
 }
@@ -561,7 +569,7 @@ function viewMgr(){
       <section class="sec"><h2>予約</h2><div>${[...S.resv].sort((a,b)=>a.at-b.at).map(r=>resvRow(r,false)).join('')||'<p class="sub">予約はありません。</p>'}</div>
       <p class="sub">数字の集計は、店長用・本部用のログインで管理画面から見られます。</p></section>`};
   }
-  const st=stats(), mx=Math.max(1,...st.pr.map(r=>r.p));
+  const st=stats(), mx=Math.max(1,...st.pr.map(r=>Math.max(r.p,r.w)));
   const band=`<div class="band"><div class="b-box"><span>店舗</span><b style="font-family:var(--ui);font-size:19px;line-height:2">${esc(S.shop.name||'')}</b></div>
     <div class="b-main"><small>店長の画面</small><strong>${al.length?'確認が必要なことがあります':'確認が必要なことはありません'}</strong></div>
     <div class="b-right"><div class="b-stat"><b>${st.visits}</b> 組<small>本日の来店</small></div><div class="b-stat"><b>${st.won}</b> 組<small>成約</small></div></div></div>`;
@@ -580,7 +588,7 @@ function viewMgr(){
     <div class="grid g2" style="gap:32px">
      <div class="sec"><h2>スタッフ別</h2><div class="scroll"><table><thead><tr><th>スタッフ</th><th class="n">接客</th><th class="n">提案</th><th class="n">成約</th></tr></thead><tbody>
       ${st.per.map(r=>`<tr><td>${esc(r.n)}</td><td class="n">${r.v}</td><td class="n">${r.p}</td><td class="n">${r.w}</td></tr>`).join('')}</tbody></table></div></div>
-     <div class="sec"><div class="row between"><h2>商材別</h2><div class="legend"><span><i style="background:var(--blue)"></i>提案回数</span><span><i style="background:var(--ok)"></i>獲得数</span></div></div>
+     <div class="sec"><div class="row between"><h2>商材別</h2><div class="legend"><span><i style="background:var(--blue)"></i>提案回数</span><span><i style="background:var(--ok)"></i>獲得件数</span></div></div>
       <div class="pb">${st.pr.map(r=>`<span>${r.n}</span><span class="bars"><span class="b1" style="width:${r.p/mx*100}%"></span><span class="b2" style="width:${r.w/mx*100}%"></span></span><span class="v">${r.p}／${r.w}</span>`).join('')}</div></div>
     </div>
     <div class="row">${st.acts.map(a=>`<span class="pill">${a.n}<b>${a.c}</b>件</span>`).join('')}</div>
@@ -673,8 +681,9 @@ const A={
    v.segs.push({id:uuid(),sid:d.id,p:[],w:[],a:[],stage:after?'after':'serve'});
    if(!after) v.phase='serving';
    S.changing=false; S.afterPick=false; S.screen=after?'after':'serve';},
- prop(d){const s=seg(V()); if(s.p.includes(d.v)){s.p=s.p.filter(x=>x!==d.v); s.w=s.w.filter(x=>x!==d.v);} else s.p.push(d.v);},
- win(d){const s=seg(V()); if(s.w.includes(d.v)) s.w=s.w.filter(x=>x!==d.v); else {s.w.push(d.v); if(!s.p.includes(d.v)) s.p.push(d.v);}},
+ prop(d){const s=seg(V()); if(s.p.includes(d.v)){s.p=s.p.filter(x=>x!==d.v); s.w=s.w.filter(x=>x!==d.v); if(s.q) delete s.q[d.v];} else s.p.push(d.v);},
+ win(d){const s=seg(V()); if(s.w.includes(d.v)){s.w=s.w.filter(x=>x!==d.v); if(s.q) delete s.q[d.v];} else {s.w.push(d.v); if(!s.p.includes(d.v)) s.p.push(d.v);}},
+ qty(d){const s=seg(V()); if(!s.w.includes(d.v)) return; const n=Math.max(1,Math.min(20,qn(s,d.v)+(+d.d))); s.q=s.q||{}; if(n>1) s.q[d.v]=n; else delete s.q[d.v];},
  act(d){const s=seg(V()); s.a=toggle(s.a,d.v);},
  change(){S.changing=true; S.afterPick=false; S.screen='pick';},
  won(){const v=V(); v.phase='after'; v.result='won'; S.changing=true; S.afterPick=true; S.screen='pick';},
@@ -706,7 +715,7 @@ setInterval(()=>{if(!DEV) return; const a=document.activeElement; if(a&&(a.tagNa
 /* ---------- データベースとのやり取り ---------- */
 /* 下の鍵は「公開用の鍵」で、画面に置く前提のもの。これだけでは表を読めず、登録済みの端末として入口の関数を呼べるだけ */
 const CFG={url:'https://egpibhkwemssnanalfoh.supabase.co/rest/v1',key:'sb_publishable_1WSi5i6QZa7AJz-KnNG_1A_-7WVhZfd'};
-const VSYNC=['type','hear','qnext','shdone','pick','prop','win','act','won','tstart','tend','movenone'];
+const VSYNC=['type','hear','qnext','shdone','pick','prop','win','qty','act','won','tstart','tend','movenone'];
 let DEV=null, Q=[], busy=false, lastErr=false;
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const uuid=()=>(crypto.randomUUID?crypto.randomUUID():'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=crypto.getRandomValues(new Uint8Array(1))[0]&15;return (c==='x'?r:(r&3|8)).toString(16)}));

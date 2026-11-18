@@ -50,7 +50,10 @@ async def run(b,tag,w,h):
     await pg.click('#p-net'); await pg.click('#w-carrier'); await pg.click('#act-est'); await saved(pg)
     await pg.click('#go-back'); print(tag,'back ->',await pg.text_content('#tb-t')); await saved(pg)
     print(tag,'segments after back',admin("select count(*) from visit_segments g join visits v on v.id=g.visit_id where v.ended_at is null"))
-    await pg.locator('[data-a="pick"]').first.click(); await pg.click('#p-net'); await pg.click('#w-carrier'); await pg.click('#serve-won'); await pg.locator('[data-a="pick"]').nth(1).click()
+    await pg.locator('[data-a="pick"]').first.click(); await pg.click('#p-net'); print(tag,'qty hidden before win',await pg.locator('#q-carrier').count()==0); await pg.click('#w-carrier'); print(tag,'qty default',(await pg.text_content('#qv-carrier')),'minus disabled',await pg.is_disabled('#qm-carrier'))
+    await pg.click('#qp-carrier'); await pg.click('#qp-carrier'); await pg.click('#qm-carrier'); await saved(pg); await shot('qty')
+    print(tag,'qty ui',await pg.text_content('#qv-carrier'),'| sum',(await pg.text_content('.action .sum')).strip(),'| db',admin("select sp.product_key||'='||sp.qty from segment_products sp join visit_segments g on g.id=sp.segment_id join visits v on v.id=g.visit_id where v.ended_at is null and sp.won_at is not null"))
+    await pg.click('#serve-won'); await pg.locator('[data-a="pick"]').nth(1).click()
     await pg.click('#setup-start'); await saved(pg); await pg.wait_for_timeout(5600); await shot('after')
     print(tag,'carrier hidden',await pg.query_selector('#p-carrier') is None, 'title',await pg.text_content('#tb-t'))
     await pg.click('#setup-end'); await pg.click('#move-none'); await pg.click('#a-5'); await pg.click('#b-4'); await pg.click('#c-0'); await pg.click('#sv-send'); await pg.click('#thanks-back'); await saved(pg)
@@ -117,6 +120,15 @@ async def run_kanri(b,tag,w,h,first):
     await pg.click('#demo-go'); await pg.wait_for_selector('.kpi',timeout=20000); await ov(pg,tag,'kdemo')
     print(tag,'demo: kpi',await pg.evaluate("[...document.querySelectorAll('.kpi .v')].map(e=>e.textContent).join(' / ')"),'| shops',await pg.evaluate("document.querySelector('table tbody').rows.length"),'| recent rows',await pg.evaluate("[...document.querySelectorAll('table')].pop().tBodies[0].rows.length"))
     await pg.click('[data-a="days"][data-v="30"]'); await pg.wait_for_timeout(1500); print(tag,'30 days: kpi',await pg.evaluate("[...document.querySelectorAll('.kpi .v')].map(e=>e.textContent).join(' / ')"),'| bars',await pg.locator('svg rect').count()); await ov(pg,tag,'k30')
+    lv=await pg.evaluate("[...document.querySelectorAll('#prod .tabs2:not(.sm) button')].map(b=>b.textContent).join('/')"); print(tag,'prod levels',lv,'| all rows',await pg.evaluate("document.querySelector('#prod table').tBodies[0].rows.length"),'| pills',await pg.evaluate("[...document.querySelectorAll('#prod .pill')].map(e=>e.textContent).join(' | ')"))
+    db=admin("select count(distinct v.id) filter (where sp.proposed_at is not null)||'/'||count(distinct v.id) filter (where sp.won_at is not null)||'/'||coalesce(sum(sp.qty) filter (where sp.won_at is not null),0) from segment_products sp join visit_segments g on g.id=sp.segment_id join visits v on v.id=g.visit_id join shops s on s.shop_id=v.shop_id where s.is_demo and sp.product_key='carrier' and (v.started_at at time zone 'Asia/Tokyo')::date > (now() at time zone 'Asia/Tokyo')::date-30")
+    print(tag,'carrier all row (p/rate/w/close/visit/q/per):',await pg.evaluate("[...document.querySelector('#prod table').tBodies[0].rows[0].cells].map(c=>c.textContent).join(' , ')"),'| db p/w/q',db)
+    for k in ['areas','shops','staff']:
+        await pg.click('#lv-'+k); print(tag,k,'rows',await pg.evaluate("document.querySelector('#mx').tBodies[0].rows.length"),'| row1',await pg.evaluate("[...document.querySelector('#mx').tBodies[0].rows[1].cells].slice(0,4).map(c=>c.textContent).join(' , ')"),'| marks',await pg.locator('#mx td.hi').count(),await pg.locator('#mx td.lo').count(),await pg.locator('#mx td.thin').count()); await ov(pg,tag,'kp_'+k)
+    for m in ['visit','prop','qty','close']:
+        await pg.click('#mt-'+m); print(tag,'metric',m,await pg.evaluate("[...document.querySelector('#mx').tBodies[0].rows[0].cells].slice(0,4).map(c=>c.textContent).join(' , ')"))
+    await pg.locator('#mx td.nm button').first.click(); await pg.wait_for_selector('#dt'); print(tag,'drill',await pg.text_content('#dt h3'),'| rows',await pg.evaluate("document.querySelector('#dt table').tBodies[0].rows.length")); await pg.locator('#prod').screenshot(path=f'/home/claude/a_{tag}_kprod.png'); await ov(pg,tag,'kp_drill')
+    await pg.click('#lv-shops'); await pg.locator('#prod').screenshot(path=f'/home/claude/a_{tag}_kprod_shops.png'); await pg.click('#lv-all')
     await pg.select_option('#shop-sel',index=2); await pg.wait_for_timeout(1500); print(tag,'one shop: shop table shown',await pg.evaluate("[...document.querySelectorAll('h2')].some(h=>h.textContent==='店舗別')"),'| kpi',await pg.evaluate("document.querySelector('.kpi .v').textContent"))
     await pg.screenshot(path=f'/home/claude/a_{tag}_kfull.png',full_page=True)
     await pg.click('[data-a="logout"]'); await pg.wait_for_selector('#lg-id')
@@ -129,6 +141,7 @@ async def run_kanri(b,tag,w,h,first):
         await pg.fill('#lg-pw','local-test-pass-2'); await pg.click('#lg-go')
     await pg.wait_for_selector('.kpi',timeout=20000); await pg.click('[data-a="days"][data-v="1"]'); await pg.wait_for_timeout(1500)
     print(tag,'manager: kpi',await pg.evaluate("[...document.querySelectorAll('.kpi .v')].map(e=>e.textContent).join(' / ')"),'| shop table',await pg.evaluate("[...document.querySelectorAll('h2')].some(h=>h.textContent==='店舗別')"),'| recent',await pg.evaluate("[...document.querySelectorAll('table')].pop().tBodies[0].rows[0].cells[3].textContent"),'| band',await pg.evaluate("document.querySelector('.band span').textContent"))
+    print(tag,'manager prod levels',await pg.evaluate("[...document.querySelectorAll('#prod .tabs2:not(.sm) button')].map(b=>b.textContent).join('/')")); await pg.click('#lv-staff'); print(tag,'manager staff rows',await pg.evaluate("document.querySelector('#mx').tBodies[0].rows.length"))
     await ov(pg,tag,'kmgr'); print(tag,'kanri errors',errs); await ctx.close()
 async def main():
     async with async_playwright() as p:
@@ -136,6 +149,7 @@ async def main():
         import os
         if os.environ.get('SKIP'):
             await run_login(b,'t',1024,768,os.environ.get('SKIP')=='first'); await run_login(b,'m',390,844,False); await run_kanri(b,'t',1280,800,os.environ.get('SKIP')=='first'); await run_kanri(b,'m',390,844,False); print('rpc errors',CALLS['err'][:5]); await b.close(); return
+        admin("update accounts set pass_hash=null, pass_set_at=null, failed=0, locked_until=null")
         pg1=await run(b,'t',1024,768)
         admin("select public.app__demo_seed(9000,true)")
         pg2=await run(b,'m',390,844)
