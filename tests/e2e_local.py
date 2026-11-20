@@ -16,7 +16,7 @@ async def handler(route):
     assert re.fullmatch(r'app_[a-z_]+',fn), fn
     assert req.headers.get('apikey'), 'no apikey'
     body=json.loads(req.post_data or '{}')
-    ty=lambda k:'uuid' if (fn=='app_survey' and k=='p_visit') else 'text' if (k=='p_id' and fn in ('app_login','app_set_password','app_change_password')) else T[k]
+    ty=lambda k:'uuid' if (fn=='app_survey' and k=='p_visit') else 'text' if (k=='p_id' and fn in ('app_login','app_set_password','app_change_password','app_undo')) else T[k]
     args=', '.join(f"{k} => "+(f"(:'j'::jsonb->'{k}')" if ty(k)=='jsonb' else f"(:'j'::jsonb->>'{k}')::{ty(k)}") for k in body)
     r=psql(f"set role anon;\nselect public.{fn}({args});\n",json.dumps(body))
     CALLS['n']+=1
@@ -31,6 +31,8 @@ async def newpage(b,w,h):
     return pg,errs
 async def saved(pg): await pg.wait_for_function("document.getElementById('net').textContent==='保存済み'",timeout=20000)
 tiles=lambda pg: pg.locator('button.tile:not(.addt)')
+async def gone(pg): await pg.wait_for_function("!document.querySelector('#modal .dlg')",timeout=20000)
+ATT="select count(*) from attendance where shop_id=9000 and work_date=(now() at time zone 'Asia/Tokyo')::date"
 async def hear(pg,age):
     b=pg.locator(f'[data-k="age"][data-v="{age}"]')
     if await b.get_attribute('aria-pressed')!='true': await b.click()
@@ -43,7 +45,18 @@ async def run(b,tag,w,h):
         await pg.screenshot(path=f'/home/claude/a_{tag}_{n}.png')
     print(tag,'tables',await tiles(pg).count(),'not clocked',await pg.locator('[data-a="clockin"]').count())
     if await pg.locator('[data-a="clockin"]').count(): await pg.locator('[data-a="clockin"]').first.click()
-    await shot('home')
+    await shot('home'); await saved(pg)
+    # 押し間違いの取り消し：出勤
+    a0=admin(ATT); await pg.locator('.person .un').last.click(); await shot('modal')
+    print(tag,'popup:',await pg.text_content('#dlg-t'),'|',await pg.text_content('#dlg-gone'),'| focus on',await pg.evaluate("document.activeElement.id"))
+    await pg.click('#dlg-no'); print(tag,'cancel keeps data: modal',await pg.locator('#modal .dlg').count(),'attendance',a0,'->',admin(ATT))
+    await pg.locator('.person .un').last.click(); await pg.click('#dlg-yes'); await gone(pg)
+    print(tag,'clock-in undone: attendance',a0,'->',admin(ATT),'| not clocked',await pg.locator('[data-a="clockin"]').count(),'| history',admin("select count(*) from events where action='attendance.undo' and before is not null"))
+    await pg.locator('[data-a="clockin"]').first.click(); await saved(pg)
+    # 応援スタッフ
+    await pg.click('#add-help'); await pg.fill('[data-f="name"]','試験'); await pg.click('#help-save'); await saved(pg); h0=admin("select count(*) from helpers"); p0=await pg.locator('.person:not(.add)').count()
+    await pg.locator('[data-k="helper"]').last.click(); t=await pg.text_content('#dlg-t'); await pg.click('#dlg-yes'); await gone(pg)
+    print(tag,'helper undone:',t,'| helpers',h0,'->',admin("select count(*) from helpers"),'| cards',p0,'->',await pg.locator('.person:not(.add)').count())
     # full flow
     await tiles(pg).nth(2).click(); await pg.locator('[data-a="recv"]').first.click(); await pg.click('#type-out')
     await pg.click('[data-k="age"][data-v="70〜74歳"]'); await pg.click('#extra-0'); print(tag,'age only: disabled',await pg.is_disabled('#sh-done'),'|',await pg.text_content('#sh-left')); await hear(pg,'70〜74歳'); print(tag,'all 5: disabled',await pg.is_disabled('#sh-done'),'|',await pg.text_content('#sh-left')); await pg.click('#sh-done'); await pg.locator('[data-a="pick"]').first.click()
@@ -68,7 +81,7 @@ async def run(b,tag,w,h):
     # back = void
     n0=admin("select count(*) from visits")
     await tiles(pg).nth(2).click(); await pg.locator('[data-a="recv"]').first.click(); await pg.click('#type-in_meo'); await saved(pg)
-    n1=admin("select count(*) from visits"); await pg.click('#go-back'); await saved(pg)
+    n1=admin("select count(*) from visits"); await pg.click('#go-back'); print(tag,'void popup:',await pg.text_content('#dlg-t'),'|',await pg.text_content('#dlg-gone')); await pg.click('#dlg-no'); print(tag,'void cancelled: visits',admin("select count(*) from visits"),'title',await pg.text_content('#tb-t')); await pg.click('#go-back'); await pg.click('#dlg-yes'); await saved(pg)
     print(tag,'void: visits',n0,'->',n1,'->',admin("select count(*) from visits"),'title',await pg.text_content('#tb-t'))
     await pg.click('#go-home')
     # reservation register + cancel
@@ -76,13 +89,17 @@ async def run(b,tag,w,h):
     d=await pg.evaluate("(()=>{const d=new Date(Date.now()+3*3600e3);const p=n=>String(n).padStart(2,'0');return [d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate()),p(d.getHours())+':'+p(d.getMinutes())]})()")
     await pg.fill('#rf-date',d[0]); await pg.fill('#rf-time',d[1]); await pg.click('#rf-save'); await saved(pg); await shot('resv')
     print(tag,'resv rows',await pg.locator('.rv').count(),'nos',await pg.evaluate("[...document.querySelectorAll('.rv .w span')].map(e=>(e.textContent.match(/R-\\d+|採番中/)||[''])[0]).join(',')"))
+    r0=admin("select count(*) from reservations where shop_id=9000"); await pg.locator('[data-k="reservation"]').last.click(); tt=await pg.text_content('#dlg-t'); sub=await pg.text_content('#dlg-sub'); await pg.click('#dlg-yes'); await gone(pg)
+    print(tag,'resv deleted:',tt,'| rows',await pg.locator('.rv').count(),'| db',r0,'->',admin("select count(*) from reservations where shop_id=9000"),'| cancel note','キャンセル' in sub,'| counted as cancel',admin("select count(*) from reservations where shop_id=9000 and status='cancel'"))
+    await pg.click('#resv-new'); await pg.fill('#rf-date',d[0]); await pg.fill('#rf-time',d[1]); await pg.click('#rf-save'); await saved(pg)
     await pg.locator('[data-a="rcancel"]').last.click(); await saved(pg)
     # reservation due -> auto table -> no-show
     admin("update reservations set reserved_at=now()+interval '10 minutes' where id=(select id from reservations where status='booked' order by reserved_at limit 1)")
     await pg.click('#role-staff'); await pg.wait_for_function("document.querySelectorAll('button.tile.rsv').length===1",timeout=15000); await shot('rsv')
     print(tag,'auto table: tiles',await tiles(pg).count(),'alert badge',await pg.text_content('.b-alert') if await pg.locator('.b-alert').count() else '-')
     await pg.locator('button.tile.rsv').click(); await pg.click('#resv-noshow'); await saved(pg); print(tag,'after noshow tiles',await tiles(pg).count())
-    await pg.click('#add-table'); await saved(pg); a=await tiles(pg).count(); await pg.click('#rm-table'); await saved(pg); print(tag,'add/remove',a,'->',await tiles(pg).count())
+    await pg.click('#add-table'); await saved(pg); a=await tiles(pg).count(); t0=admin("select count(*) from tables where shop_id=9000"); await pg.click('#rm-table'); tt=await pg.text_content('#dlg-t'); await pg.click('#dlg-yes'); await gone(pg); print(tag,'add/remove',a,'->',await tiles(pg).count(),'|',tt,'| table rows',t0,'->',admin("select count(*) from tables where shop_id=9000"))
+    await pg.locator('.person .un').first.click(); await pg.click('#dlg-yes'); await pg.wait_for_selector('#dlg-err'); print(tag,'in use ->',await pg.text_content('#dlg-err'),'| attendance',admin(ATT)); await pg.click('#dlg-no'); await gone(pg)
     await pg.click('#role-mgr'); await shot('mgr'); print(tag,'mgr kpi',await pg.evaluate("[...document.querySelectorAll('.kpi .v')].map(e=>e.textContent).join('/')"))
     # offline
     await pg.click('#role-staff'); OFF['v']=True

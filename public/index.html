@@ -81,6 +81,15 @@ main{padding:24px 24px 40px;display:flex;flex-direction:column;gap:32px;max-widt
 .person .nm{font-size:17px;font-weight:500;line-height:1.3}
 .person .st{font-size:12.5px;color:var(--ink2)}
 .person .btn{margin-left:auto}
+.person .un{margin-left:auto;font-size:13px;color:var(--ink2);text-decoration:underline;text-underline-offset:3px;min-height:44px;padding:0 4px;white-space:nowrap}
+.link.del{font-size:13.5px;color:var(--ink2);text-decoration:underline;text-underline-offset:3px}
+.ovl{position:fixed;inset:0;z-index:300;background:rgba(20,32,45,.5);display:flex;align-items:center;justify-content:center;padding:20px}
+.dlg{background:var(--surface);border-radius:6px;width:100%;max-width:460px;padding:24px;display:flex;flex-direction:column;gap:12px}
+.dlg h2{font-size:18px;font-weight:700;line-height:1.5}
+.dlg .gone{font-size:17px;font-weight:700;color:var(--red);background:var(--red-pale);border:1px solid var(--red);border-radius:4px;padding:10px 12px}
+.dlg .acts{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-top:6px}
+.dlg .acts .btn{min-height:50px}
+.btn.danger{background:var(--red);border-color:var(--red);color:#fff}
 .badge{position:absolute;top:-10px;left:36px;background:var(--accent);color:#fff;font-size:11.5px;font-weight:500;border-radius:12px;padding:1px 9px}
 .person.add{justify-content:center;color:var(--blue);border-style:dashed;gap:8px;width:100%}
 
@@ -239,6 +248,7 @@ label{font-size:14px;color:var(--ink2);display:flex;flex-direction:column;gap:6p
 <div id="band"></div>
 <main id="app"></main>
 <div id="act"></div>
+<div id="modal"></div>
 <nav class="tabs" aria-label="画面の切り替え">
   <button class="tab" id="role-staff" data-a="tab" data-v="staff"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7"/><rect x="13.5" y="3.5" width="7" height="7"/><rect x="3.5" y="13.5" width="7" height="7"/><rect x="13.5" y="13.5" width="7" height="7"/></svg>卓のiPad</button>
   <button class="tab" id="role-resv" data-a="tab" data-v="resv"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="3.5" y="5.5" width="17" height="15"/><path d="M3.5 10h17M8 3v4.5M16 3v4.5"/></svg>予約</button>
@@ -312,6 +322,30 @@ const onDuty=()=>S.staff.filter(s=>s.inAt);
 const seg=v=>v.segs[v.segs.length-1];
 const qn=(g,k)=>(g.q&&+g.q[k])||1; /* 獲得の件数。入力がなければ1 */
 const wq=g=>g.w.reduce((a,k)=>a+qn(g,k),0);
+/* 押し間違いの取り消し。消す前に必ず「このデータは残りません」を出す */
+let MD=null, MV=0;
+const UERR={in_use:'すでに接客の記録に使われているため、取り消せません。',not_found:'すでに取り消されています。',last_table:'卓は1つ以上必要です。最後の1つは消せません。',auto_table:'予約のために用意された卓です。予約の画面で操作してください。',bad_request:'取り消せませんでした。'};
+const inUse=id=>S.tables.some(t=>t.v&&(t.v.recv===id||t.v.segs.some(g=>g.sid===id)));
+function modalHtml(){
+  if(!MD) return '';
+  if(MD.err) return `<div class="ovl"><div class="dlg" role="alertdialog" aria-modal="true" aria-labelledby="dlg-t" aria-describedby="dlg-err"><h2 id="dlg-t">取り消せませんでした</h2><p id="dlg-err">${esc(MD.err)}</p><div class="acts"><button class="btn line" id="dlg-no" data-a="mno">閉じる</button></div></div></div>`;
+  const tt={clock_in:[`${MD.n}さんの出勤を取り消しますか`,'出勤を取り消す'],helper:[`応援スタッフ「${MD.n}」さんの追加を取り消しますか`,'追加を取り消す'],table:[`${MD.n}を消しますか`,'卓を消す'],reservation:[`予約（${MD.n}）を消しますか`,'予約を消す'],void:['この受付を取り消しますか','受付を取り消す']}[MD.k]||['取り消しますか','取り消す'];
+  const more=MD.k==='reservation'?'<br>お客様のご都合によるキャンセルは、「取り消す」を使ってください（キャンセルとして記録に残ります）。':MD.k==='void'?'<br>来店区分を選び直す場合も、いまの記録は消え、選び直したところから新しく始まります。':'';
+  return `<div class="ovl"><div class="dlg" role="alertdialog" aria-modal="true" aria-labelledby="dlg-t" aria-describedby="dlg-gone"><h2 id="dlg-t">${esc(tt[0])}</h2>
+    <p class="gone" id="dlg-gone">このデータは残りません。</p>
+    <p class="sub" id="dlg-sub">記録を消し、集計にも入りません。取り消したことだけが、操作の履歴に残ります。${more}</p>
+    <div class="acts"><button class="btn line" id="dlg-no" data-a="mno" ${MD.busy?'disabled':''}>やめる</button><button class="btn danger" id="dlg-yes" data-a="myes" ${MD.busy?'disabled':''}>${MD.busy?'取り消しています':esc(tt[1])}</button></div></div></div>`;
+}
+function renderModal(){const c=document.getElementById('modal'); if(c.dataset.v===String(MV)) return; c.dataset.v=String(MV); c.innerHTML=modalHtml(); const b=document.getElementById('dlg-no'); if(b) b.focus();}
+async function undoCall(m){
+  for(let i=0;i<25&&(Q.length||busy);i++) await sleep(200);
+  try{
+    if(Q.length||busy) throw new Error('not sent yet');
+    const f=await call('app_undo',{p_device:DEV.device,p_secret:DEV.secret,p_kind:m.k,p_id:m.id});
+    if(f&&f.error) MD={...m,busy:false,err:UERR[f.error]||UERR.bad_request}; else {applyFloor(f); MD=null;}
+  }catch(e){MD={...m,busy:false,err:'通信できませんでした。つながってから、もう一度お試しください。'};}
+  MV++; render();
+}
 const anyWon=v=>v.segs.some(x=>x.w.length>0); /* 1つでも獲得があれば「成約なしで終了」は不可（担当変更の前の分も含む） */
 const prod=k=>PRODS.find(p=>p.k===k).n;
 const tnum=t=>t.name.replace('卓','');
@@ -399,7 +433,7 @@ function checklist(v,sg,after){
 }
 
 function resvRow(r,withAct){
-  const act=withAct&&['booked','seated'].includes(r.st)?`${r.st==='seated'&&rwait(r)<=0?`<button class="btn line s" id="rv-noshow-${r.id}" data-a="noshow" data-id="${r.id}">来店なし</button>`:''}<button class="btn line s" id="rv-cancel-${r.id}" data-a="rcancel" data-id="${r.id}">取り消す</button>`:'';
+  const act=withAct&&['booked','seated'].includes(r.st)?`${r.st==='seated'&&rwait(r)<=0?`<button class="btn line s" id="rv-noshow-${r.id}" data-a="noshow" data-id="${r.id}">来店なし</button>`:''}<button class="btn line s" id="rv-cancel-${r.id}" data-a="rcancel" data-id="${r.id}">取り消す</button>${S.tables.some(t=>t.id===r.tid&&t.v)?'':`<button class="link del" id="rv-del-${r.id}" data-a="ask" data-k="reservation" data-id="${r.id}" data-n="${esc(r.no)}　${hm(r.at)}　${esc(r.purpose)}">入力の間違い（消す）</button>`}`:'';
   return `<div class="rv"><div class="t">${hm(r.at)}<small>${dayLabel(r.at)}</small></div>
     <div class="w"><b>${esc(r.purpose)}</b><span>担当 ${r.staff?esc(staffName(r.staff))+'さん':'未定'}　予約番号 ${esc(r.no)}${r.st==='seated'?'　'+rwhen(r):''}</span></div>
     <div class="x"><span class="chip ${r.st}">${RST[r.st]}</span>${act}</div></div>`;
@@ -435,9 +469,9 @@ home(){
   <section class="sec"><div class="row between"><h2>出勤</h2><span class="sub">出勤したら、自分の名前の「出勤」を押します</span></div>
     <div class="grid g3">${[...S.staff].sort((a,b)=>(a.inAt?1:0)-(b.inAt?1:0)).map(s=>{const late=false;return `<div class="person ${s.inAt?'':'off'}">
       ${late?`<span class="badge">開始から${mins(s.shift)}分</span>`:''}<span class="ava">${esc(s.name[0])}</span><span><span class="nm">${esc(s.name)}</span><br><span class="st">${s.inAt?'出勤 '+hm(s.inAt):esc(s.kind)}</span></span>
-      ${s.inAt?'':`<button class="btn blue s" id="in-${s.id}" data-a="clockin" data-id="${s.id}">出勤</button>`}</div>`}).join('')}
+      ${s.inAt?(inUse(s.id)?'':`<button class="un" id="un-${s.id}" data-a="ask" data-k="${s.id[0]==='h'?'helper':'clock_in'}" data-id="${s.id[0]==='h'?s.id.slice(1):s.id}" data-n="${esc(s.name)}" aria-label="${esc(s.name)}さんの${s.id[0]==='h'?'追加':'出勤'}を取り消す">取り消す</button>`):`<button class="btn blue s" id="in-${s.id}" data-a="clockin" data-id="${s.id}">出勤</button>`}</div>`}).join('')}
       <button class="person add" id="add-help" data-a="go" data-v="help">${PLUS}応援スタッフを追加</button></div></section>
-  <section class="sec"><div class="row between"><h2>卓</h2>${S.tables.some(t=>!t.v&&!t.auto)&&S.tables.length>1?`<button class="link" id="rm-table" data-a="rmtable">空いている卓を1つ減らす</button>`:''}</div>
+  <section class="sec"><div class="row between"><h2>卓</h2>${(()=>{const rt=[...S.tables].reverse().find(t=>!t.v&&!t.auto); return rt&&S.tables.filter(t=>!t.auto).length>1?`<button class="link" id="rm-table" data-a="ask" data-k="table" data-id="${rt.id}" data-n="${esc(rt.name)}">空いている卓を1つ減らす</button>`:'';})()}</div>
     <div class="grid g3">${S.tables.map(t=>tile(t)).join('')}<button class="tile addt" id="add-table" data-a="addtable">${PLUS}卓を追加</button></div></section>
   <section class="sec"><div class="row between"><h2>これからの予約</h2><button class="link" id="to-resv" data-a="tab" data-v="resv">予約の一覧・登録${CHEV}</button></div>
     ${(()=>{const up=S.resv.filter(r=>['booked','seated'].includes(r.st)).sort((a,b)=>a.at-b.at).slice(0,3);
@@ -605,6 +639,7 @@ function viewMgr(){
 }
 
 function render(){
+  renderModal();
   document.body.classList.toggle('start-mode',!DEV);
   if(!DEV){renderStart();return;}
   if(!S.ready){document.getElementById('tb-t').textContent='店舗管理システム';document.getElementById('app').innerHTML='<p class="sub" style="font-size:16px">データベースに接続しています。数秒お待ちください。</p>';return;}
@@ -651,7 +686,12 @@ const A={
  rcancel(d){const r=RV(d.id); if(!r) return; r.st='cancel'; dropAutoTable(r); rpcQ('app_reservation',{p_resv:{id:r.id,st:'cancel'}});},
  noshow(d){const r=RV(d.id); if(!r) return; r.st='noshow'; dropAutoTable(r); rpcQ('app_reservation',{p_resv:{id:r.id,st:'noshow'}}); if(!RSCREEN.includes(S.screen)){S.screen='home';S.hist=[];}},
  home(){S.screen='home';S.changing=false;S.afterPick=false;S.hist=[];},
- back(){const h=S.hist; if(!h.length) return; const role=S.role, cur=V(), tid=S.tid; S={...JSON.parse(h.pop()),hist:h,role};
+ ask(d){MD={k:d.k,id:d.id,n:d.n||''}; MV++;},
+ mno(){MD=null; MV++;},
+ myes(){const m=MD; if(!m||m.busy) return; if(m.k==='void'){MD=null; MV++; A.back({sure:'1'}); window.scrollTo(0,0); return;} m.busy=true; MV++; undoCall(m);},
+ back(d){const h=S.hist; if(!h.length) return;
+   if(!(d&&d.sure)){const c0=V(); if(c0){const p0=JSON.parse(h[h.length-1]), t0=(p0.tables||[]).find(x=>x.id===S.tid), o0=t0&&t0.v; if(!o0||o0.id!==c0.id){MD={k:'void',id:'',n:''}; MV++; return;}}}
+   const role=S.role, cur=V(), tid=S.tid; S={...JSON.parse(h.pop()),hist:h,role};
    const t=S.tables.find(x=>x.id===tid), old=t&&t.v;
    if(cur&&(!old||old.id!==cur.id)) rpcQ('app_save_visit',{p_visit:{id:cur.id,void:true}});
    else if(old) pushVisit(old);},
@@ -713,6 +753,7 @@ document.addEventListener('click',e=>{const el=e.target.closest('[data-a]'); if(
   if(VSYNC.includes(a)){const v=V(); if(v) pushVisit(v);}
   render(); if(S.screen+S.role!==before) window.scrollTo(0,0);});
 function field(e){const d=e.target.dataset; if(d&&d.f){(d.g==='rf'?S.rf:S.help)[d.f]=e.target.value;}}
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&MD&&!MD.busy){MD=null; MV++; render();}});
 document.addEventListener('input',field); document.addEventListener('change',field);
 setInterval(()=>{if(!DEV) return; const a=document.activeElement; if(a&&(a.tagName==='INPUT'||a.tagName==='SELECT')) return; if(RSCREEN.includes(S.screen)&&S.screen==='resvnew'&&S.role==='staff') return; render();},20000);
 
@@ -760,7 +801,7 @@ async function poll(){
   catch(e){ if(String(e.body).includes('device_not_registered')) return reenroll(); lastErr=true; }
   net();
 }
-async function reenroll(){DEV=null; store.del('tk_dev'); Q=[]; store.set('tk_q',Q); init(); LG.v++; render();}
+async function reenroll(){MD=null; MV++; DEV=null; store.del('tk_dev'); Q=[]; store.set('tk_q',Q); init(); LG.v++; render();}
 /* ---------- 入口（ログイン／見本店） ---------- */
 const START=['login','setpw','startdemo'];
 const LG={mode:'login',err:'',id:'',busy:false,v:1};
