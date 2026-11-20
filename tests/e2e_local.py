@@ -142,7 +142,21 @@ async def run_login(b,tag,w,h,first):
     if await tiles(pg).count()==0: await pg.click('#add-table'); await saved(pg)
     await tiles(pg).nth(0).click(); await pg.locator('[data-a="recv"]').first.click(); await pg.click('#type-in_guide'); await pg.click('#p-support'); await pg.click('#serve-end'); await saved(pg)
     await pg.click('#role-mgr'); print(tag,'table role: kpi tiles',await pg.locator('.kpi').count(),'title',await pg.text_content('#tb-t')); await ov(pg,tag,'notice')
-    await pg.click('#logout'); await pg.wait_for_selector('#lg-id'); print(tag,'after logout: start screen',await pg.locator('#start-demo').count()); print(tag,'login errors',errs); await ctx.close()
+    await pg.click('#logout'); await pg.wait_for_selector('#lg-id'); print(tag,'after logout: start screen',await pg.locator('#start-demo').count())
+    # パスワードを変える（手元の使い捨てデータベースの試験用の値。最後に元へ戻す）
+    PW2='local-test-pass-9'
+    await pg.fill('#lg-id','shiken'); await pg.fill('#lg-pw',PW); await pg.click('#lg-go'); await pg.wait_for_selector('#add-table',timeout=15000)   # 1台ログインした状態にする
+    dv0=admin("select count(*) from devices where login_id='shiken' and revoked_at is null")
+    await pg.evaluate("store.del('tk_dev')"); await pg.reload(); await pg.wait_for_selector('#lg-id')
+    await pg.fill('#lg-id','shiken'); await pg.click('#lg-chg'); await pg.wait_for_selector('#cg-old'); print(tag,'change form: id carried',await pg.input_value('#cg-id'))
+    await pg.fill('#cg-old','wrong-one'); await pg.fill('#cg-new',PW2); await pg.fill('#cg-new2',PW2); await pg.click('#lg-go'); await pg.wait_for_selector('#lg-err'); print(tag,'wrong old ->',await pg.text_content('#lg-err'))
+    await pg.fill('#cg-old',PW); await pg.fill('#cg-new',PW2); await pg.fill('#cg-new2',PW2+'x'); await pg.click('#lg-go'); await pg.wait_for_function("document.getElementById('lg-err')&&document.getElementById('lg-err').textContent.includes('同じでは')"); print(tag,'mismatch ->',await pg.text_content('#lg-err'))
+    await pg.fill('#cg-old',PW); await pg.fill('#cg-new',PW2); await pg.fill('#cg-new2',PW2); await pg.click('#lg-go'); await pg.wait_for_selector('#lg-msg',timeout=15000)
+    print(tag,'changed ->',await pg.text_content('#lg-msg'),'| devices of this id still in',dv0,'->',admin("select count(*) from devices where login_id='shiken' and revoked_at is null"),'| history',admin("select count(*) from events where action='password.changed'"))
+    await pg.fill('#lg-id','shiken'); await pg.fill('#lg-pw',PW); await pg.click('#lg-go'); await pg.wait_for_selector('#lg-err'); print(tag,'old password ->',await pg.text_content('#lg-err'))
+    await pg.fill('#lg-pw',PW2); await pg.click('#lg-go'); await pg.wait_for_selector('#add-table',timeout=15000); print(tag,'new password -> logged in'); await pg.click('#logout'); await pg.wait_for_selector('#lg-id'); await ov(pg,tag,'chg')
+    await pg.click('#lg-chg'); await pg.fill('#cg-id','shiken'); await pg.fill('#cg-old',PW2); await pg.fill('#cg-new',PW); await pg.fill('#cg-new2',PW); await pg.screenshot(path=f'/home/claude/a_{tag}_chg.png'); await pg.click('#lg-go'); await pg.wait_for_selector('#lg-msg',timeout=15000)
+    print(tag,'login errors',errs); await ctx.close()
 async def run_kanri(b,tag,w,h,first):
     ctx=await b.new_context(viewport={'width':w,'height':h}); pg=await ctx.new_page(); errs=[]
     pg.on('pageerror',lambda e:errs.append(str(e)))
@@ -159,6 +173,7 @@ async def run_kanri(b,tag,w,h,first):
         await pg.click('#mt-'+m); print(tag,'metric',m,await pg.evaluate("[...document.querySelector('#mx').tBodies[0].rows[0].cells].slice(0,4).map(c=>c.textContent).join(' , ')"))
     await pg.locator('#mx td.nm button').first.click(); await pg.wait_for_selector('#dt'); print(tag,'drill',await pg.text_content('#dt h3'),'| rows',await pg.evaluate("document.querySelector('#dt table').tBodies[0].rows.length")); await pg.locator('#prod').screenshot(path=f'/home/claude/a_{tag}_kprod.png'); await ov(pg,tag,'kp_drill')
     await pg.click('#lv-shops'); await pg.locator('#prod').screenshot(path=f'/home/claude/a_{tag}_kprod_shops.png'); await pg.click('#lv-all')
+    print(tag,'time section: rows',await pg.evaluate("document.querySelector('#time table').tBodies[0].rows.length"),'| pills',await pg.evaluate("[...document.querySelectorAll('#time .pill')].map(e=>e.textContent).join(' | ')"),'| row1',await pg.evaluate("[...document.querySelector('#time table').tBodies[0].rows[0].cells].map(c=>c.textContent).join(' , ')")); await pg.locator('#time').screenshot(path=f'/home/claude/a_{tag}_ktime.png'); await ov(pg,tag,'ktime')
     await pg.select_option('#shop-sel',index=2); await pg.wait_for_timeout(1500); print(tag,'one shop: shop table shown',await pg.evaluate("[...document.querySelectorAll('h2')].some(h=>h.textContent==='店舗別')"),'| kpi',await pg.evaluate("document.querySelector('.kpi .v').textContent"))
     await pg.screenshot(path=f'/home/claude/a_{tag}_kfull.png',full_page=True)
     await pg.click('[data-a="logout"]'); await pg.wait_for_selector('#lg-id')

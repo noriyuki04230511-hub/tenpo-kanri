@@ -169,6 +169,19 @@ function prodSection(){
     <p class="sub">数え方：来店も成約率も「組」で数えます。1組で携帯を2件獲得しても、成約は1組・獲得件数は2件です。成約率＝獲得した組÷提案した組。あたり獲得率＝獲得した組÷来店（個人は接客）した組。提案率＝提案した組÷来店した組。${staff?'個人の数字は、その人が担当していた間に押された「提案した」「獲得した」の分です。順位づけではなく、提案の偏りを見つけるために使います。':''}</p></div></section>`;
 }
 
+/* 現場の時間の使い方：受付から卓が空くまでの時間を、来店区分ごとに合計する */
+function timeSection(){
+  const T=(R.byType||[]).filter(x=>x.timed!=null); if(!T.length) return '';
+  const tot=T.reduce((a,x)=>a+(x.sumMin||0),0), n=T.reduce((a,x)=>a+(x.timed||0),0), long=T.reduce((a,x)=>a+(x.longN||0),0);
+  const g=T.filter(x=>x.key==='in_guide'||x.key==='in_guide_h'), gm=g.reduce((a,x)=>a+(x.sumMin||0),0), gn=g.reduce((a,x)=>a+(x.timed||0),0);
+  const hr=m=>(Math.round(m/6)/10).toFixed(1), p=R.proc||{};
+  const pm=(p.setupN||0)*(p.setupAvg||0)+(p.moveN||0)*(p.moveAvg||0);
+  return `<section class="sec" id="time"><h2>現場の時間の使い方</h2><div class="box">
+    <div class="pills"><span class="pill">接客の合計<b>${hr(tot)}</b>時間（${n}組）</span><span class="pill">1組あたり<b>${n?Math.round(tot/n):'—'}</b>分</span><span class="pill">うち操作説明<b>${hr(gm)}</b>時間（${gn}組・${tot?pct(gm,tot):0}%）</span><span class="pill">うち顧客登録・データ移行<b>${hr(pm)}</b>時間（${tot?pct(pm,tot):0}%）</span></div>
+    ${tbl(['来店区分','平均（分）','合計時間','割合'],T.map(x=>`<tr><td style="white-space:normal;min-width:112px">${esc(x.label)}<small style="display:block;font-size:12px;color:var(--ink2)">${x.timed}組</small></td><td class="n${x.timed>0&&x.timed<5?' thin':''}">${x.avgMin==null?'—':x.avgMin}</td><td class="n">${hr(x.sumMin||0)}</td><td class="n">${tot?pct(x.sumMin||0,tot)+'%':'—'}</td></tr>`),[1,2,3])}
+    <p class="sub">時間は、受付を押してから卓が空くまでです。顧客登録・データ移行の時間は、その内数です（顧客登録 ${p.setupN||0}件・平均${p.setupAvg==null?'—':p.setupAvg}分、データ移行 ${p.moveN||0}件・平均${p.moveAvg==null?'—':p.moveAvg}分）。進行中の接客は含みません。${long?`4時間を超えた記録が${long}件あり、終了の押し忘れとして時間の集計から除いています。`:''}組が5未満の平均は灰色（参考値）です。</p></div></section>`;
+}
+
 function renderLogin(){
   $('top-r').innerHTML='<a class="link" href="./">卓の画面へ</a>'; $('note').innerHTML=''; $('band').innerHTML='';
   const setup=LG.mode==='setup';
@@ -242,6 +255,7 @@ function render(){
   ${R.byShop.length>1?`<section class="sec"><h2>店舗別</h2><div class="box">${tbl(['店舗','エリア','来店','提案','成約','成約率（含む）','成約率（除く）','満足度','回答'],R.byShop.map(s=>`<tr><td>${esc(s.name)}</td><td>${esc(s.area||'—')}</td><td class="n">${s.visits}</td><td class="n">${s.proposed}</td><td class="n">${s.won}</td><td class="n">${pv(pct(s.won,s.visits))}${s.visits?'%':''}</td><td class="n">${pv(pct(s.won,s.visits-s.guide))}${s.visits-s.guide>0?'%':''}</td><td class="n">${s.satN>=5?s.sat:'—'}</td><td class="n">${s.satN}</td></tr>`),[2,3,4,5,6,7,8])}
     <p class="sub">成約率と満足度を必ず並べて見ます。成約率だけが高く満足度が低い店舗は、売り方を確認する対象です。</p></div></section>`:''}
   ${prodSection()}
+  ${timeSection()}
   ${chart?`<section class="sec"><h2>日別の推移</h2><div class="box">${chart}</div></section>`:''}
   <div class="grid2">
     <section class="sec"><h2>来店区分別</h2><div class="box"><div class="legend"><span><i style="background:var(--blue)"></i>来店</span><span><i style="background:var(--ok)"></i>成約</span></div>${bars(R.byType.map(x=>({label:x.label,a:x.visits,b:x.won})),'a','b')}</div></section>

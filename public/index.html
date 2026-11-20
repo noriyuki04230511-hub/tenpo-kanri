@@ -202,6 +202,7 @@ td.n{text-align:right;font-family:var(--num);font-size:19px;color:var(--blue)} t
 .chip.arrived{border-color:var(--blue);color:#fff;background:var(--blue)}
 .chip.done{border-color:var(--ok);color:var(--ok)}
 .chip.noshow{border-color:var(--red);color:var(--red)}
+.okmsg{color:var(--ok);font-size:14.5px;font-weight:500}
 .err{color:var(--red);font-size:14px}
 input[type=date],input[type=time]{font:inherit;min-height:50px;border:1px solid var(--line);border-radius:4px;padding:8px 14px;background:#fff;color:var(--ink);width:100%}
 body.cust-mode{background:var(--surface);padding-bottom:0}
@@ -449,7 +450,7 @@ resv(){
     <div class="b-right"><div class="b-stat"><b>${open}</b> 件<small>これからの予約</small></div></div></div>`;
   return {t:'予約',band,body:`<section class="sec"><div class="row between"><h2>予約の一覧</h2><button class="btn s" id="resv-new" data-a="rnew">予約を登録${CHEV}</button></div>
     <div>${list.map(r=>resvRow(r,true)).join('')}</div>
-    <p class="sub">お名前・電話番号は登録しません。お客様には予約番号をお伝えします。15分前のお知らせは、店舗の責任者のSlackにも届きます（この試作では送信しません）。予約の時刻を15分過ぎると、店長の画面のお知らせが赤に変わります。</p></section>`};
+    <p class="sub">お名前・電話番号は登録しません。お客様には予約番号をお伝えします。15分前になると、この画面にお知らせが出ます。予約の時刻を15分過ぎると、店長の画面のお知らせが赤に変わります。</p></section>`};
 },
 resvnew(){
   const f=S.rf;
@@ -482,7 +483,7 @@ home(){
   <section class="sec"><div class="row between"><h2>これからの予約</h2><button class="link" id="to-resv" data-a="tab" data-v="resv">予約の一覧・登録${CHEV}</button></div>
     ${(()=>{const up=S.resv.filter(r=>['booked','seated'].includes(r.st)).sort((a,b)=>a.at-b.at).slice(0,3);
       return up.length?`<div>${up.map(r=>resvRow(r,false)).join('')}</div>`:'<p class="sub" style="font-size:15px">これからの予約はありません。</p>';})()}
-    <p class="sub">予約の${LEAD}分前になると、卓を1つ自動で用意し、この画面・店長の画面・Slackでお知らせします。</p></section>`;
+    <p class="sub">予約の${LEAD}分前になると、卓を1つ自動で用意し、この画面と、責任者の画面でお知らせします。</p></section>`;
   return {t:'フロア',band,body};
 },
 recv(){
@@ -753,7 +754,10 @@ const A={
  logout(){const d=DEV; if(d) call('app_logout',{p_device:d.device,p_secret:d.secret}).catch(()=>{}); reenroll();},
  startdemo(){enrollDemo();},
  login(){doLogin();},
- setpw(){doSetPw();}
+ setpw(){doSetPw();},
+ chgmode(){const e=document.getElementById('lg-id'); lgSet({mode:'chg',err:'',msg:'',id:e?(e.value||'').trim():LG.id});},
+ lgmode(){lgSet({mode:'login',err:'',msg:''});},
+ chgpw(){doChgPw();}
 };
 document.addEventListener('click',e=>{const el=e.target.closest('[data-a]'); if(!el||el.disabled) return; const a=el.dataset.a, f=A[a]; if(!f) return;
   if(START.includes(a)){f(el.dataset);return;}
@@ -812,23 +816,29 @@ async function poll(){
 }
 async function reenroll(){MD=null; MV++; DEV=null; store.del('tk_dev'); Q=[]; store.set('tk_q',Q); init(); LG.v++; render();}
 /* ---------- 入口（ログイン／見本店） ---------- */
-const START=['login','setpw','startdemo'];
-const LG={mode:'login',err:'',id:'',busy:false,v:1};
+const START=['login','setpw','startdemo','chgmode','lgmode','chgpw'];
+const LG={mode:'login',err:'',msg:'',id:'',busy:false,v:1};
 const LERR={login_failed:'IDまたはパスワードが違います。',locked:'5回続けて間違えたため、5分間はログインできません。',too_short:'パスワードは8文字以上にしてください。',already_set:'このIDのパスワードはすでに決まっています。ログインしてください。'};
 const label=()=>/iPad|Macintosh.*Mobile/.test(navigator.userAgent)?'iPad':/Mobi|Android|iPhone/.test(navigator.userAgent)?'スマホ':'パソコン';
 function renderStart(){
   const app=document.getElementById('app'); document.getElementById('tb-t').textContent='店舗管理システム';
   ['tb-l','tb-r','band','act','who','bar-btns'].forEach(id=>{document.getElementById(id).innerHTML='';}); net();
   if(app.dataset.v===String(LG.v)) return; app.dataset.v=String(LG.v);
-  const setup=LG.mode==='setup';
-  app.innerHTML=`<section class="box" style="max-width:520px;width:100%;margin:0 auto"><h2>${setup?'最初のパスワードを決めます':'ログイン'}</h2>
+  const setup=LG.mode==='setup', chg=LG.mode==='chg';
+  app.innerHTML=`<section class="box" style="max-width:520px;width:100%;margin:0 auto"><h2>${setup?'最初のパスワードを決めます':chg?'パスワードを変える':'ログイン'}</h2>
     ${setup?`<p class="sub">ID「${esc(LG.id)}」は、まだパスワードが決まっていません。8文字以上で決めてください。決めたパスワードは、この画面にも記録にも残りません。</p>
       <label for="lg-new">新しいパスワード<input type="password" id="lg-new" autocomplete="new-password"></label>
       <label for="lg-new2">もう一度入力<input type="password" id="lg-new2" autocomplete="new-password"></label>`
+     :chg?`<p class="sub">変えると、このIDでログインしている端末はすべてログアウトされます。新しいパスワードで入り直してください。</p>
+      <label for="cg-id">ID<input type="text" id="cg-id" autocomplete="username" autocapitalize="none" spellcheck="false" value="${esc(LG.id)}"></label>
+      <label for="cg-old">今のパスワード<input type="password" id="cg-old" autocomplete="current-password"></label>
+      <label for="cg-new">新しいパスワード（8文字以上）<input type="password" id="cg-new" autocomplete="new-password"></label>
+      <label for="cg-new2">もう一度入力<input type="password" id="cg-new2" autocomplete="new-password"></label>`
      :`<label for="lg-id">ID<input type="text" id="lg-id" autocomplete="username" autocapitalize="none" spellcheck="false" value="${esc(LG.id)}"></label>
       <label for="lg-pw">パスワード<input type="password" id="lg-pw" autocomplete="current-password"></label>`}
-    ${LG.err?`<p class="err" id="lg-err">${esc(LG.err)}</p>`:''}
-    <div class="row"><button class="btn" id="lg-go" data-a="${setup?'setpw':'login'}" ${LG.busy?'disabled':''}>${setup?'このパスワードに決める':'ログイン'}${CHEV}</button></div></section>
+    ${LG.err?`<p class="err" id="lg-err">${esc(LG.err)}</p>`:''}${LG.msg?`<p class="okmsg" id="lg-msg">${esc(LG.msg)}</p>`:''}
+    <div class="row"><button class="btn" id="lg-go" data-a="${setup?'setpw':chg?'chgpw':'login'}" ${LG.busy?'disabled':''}>${setup?'このパスワードに決める':chg?'パスワードを変える':'ログイン'}${CHEV}</button>
+      ${setup?'':chg?'<button class="link" id="lg-back" data-a="lgmode">ログインに戻る</button>':'<button class="link" id="lg-chg" data-a="chgmode">パスワードを変える</button>'}</div></section>
   <section class="box" style="max-width:520px;width:100%;margin:0 auto"><h2>見本で試す</h2>
     <p class="sub">ログインなしで、見本データを使って操作を試せます。本物のお客様・スタッフのデータは入っていません。</p>
     <div class="row"><button class="btn line" id="start-demo" data-a="startdemo" ${LG.busy?'disabled':''}>見本店で試す</button><a class="btn line" id="start-kanri" href="kanri.html" style="text-decoration:none">管理画面のデモを見る</a></div></section>`;
@@ -839,11 +849,23 @@ async function entered(d){DEV={device:d.device,secret:d.secret,role:d.role}; sto
 async function doLogin(){
   const id=(document.getElementById('lg-id').value||'').trim(), pw=document.getElementById('lg-pw').value||'';
   if(!id){return lgSet({err:'IDを入力してください。'});}
-  lgSet({busy:true,err:'',id});
+  lgSet({busy:true,err:'',msg:'',id});
   try{const r=await call('app_login',{p_id:id,p_password:pw,p_label:label()});
     if(r.need_setup) return lgSet({mode:'setup',busy:false,err:''});
     if(r.error) return lgSet({busy:false,err:LERR[r.error]||'ログインできませんでした。'});
     await entered(r);
+  }catch(e){lgSet({busy:false,err:'通信できませんでした。もう一度お試しください。'});}
+}
+async function doChgPw(){
+  const id=(document.getElementById('cg-id').value||'').trim(), o=document.getElementById('cg-old').value||'', a=document.getElementById('cg-new').value||'', b=document.getElementById('cg-new2').value||'';
+  if(!id) return lgSet({err:'IDを入力してください。'});
+  if(a.length<8) return lgSet({err:LERR.too_short,id});
+  if(a!==b) return lgSet({err:'新しいパスワードの2つの入力が同じではありません。',id});
+  if(a===o) return lgSet({err:'今のパスワードと違うものにしてください。',id});
+  lgSet({busy:true,err:'',msg:'',id});
+  try{const r=await call('app_change_password',{p_id:id,p_old:o,p_new:a});
+    if(r.error) return lgSet({busy:false,err:r.error==='login_failed'?'IDまたは今のパスワードが違います。':(LERR[r.error]||'変えられませんでした。')});
+    lgSet({busy:false,mode:'login',err:'',msg:'パスワードを変えました。新しいパスワードでログインしてください。'});
   }catch(e){lgSet({busy:false,err:'通信できませんでした。もう一度お試しください。'});}
 }
 async function doSetPw(){
