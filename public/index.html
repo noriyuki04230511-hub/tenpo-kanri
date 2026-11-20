@@ -72,6 +72,8 @@ main{padding:24px 24px 40px;display:flex;flex-direction:column;gap:32px;max-widt
 .btn.onblue{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.8)}
 .btn.s{min-height:44px;padding:6px 16px;font-size:15px}
 .btn[disabled]{background:var(--off);color:#8b96a1;border-color:var(--off);cursor:not-allowed}
+.btn.onblue[disabled]{background:transparent;color:rgba(255,255,255,.45);border:1px dashed rgba(255,255,255,.45)}
+.action .why{flex:1 1 100%;font-size:13.5px;line-height:1.5;color:#fff}
 
 .person{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:12px 14px;display:flex;align-items:center;gap:12px;position:relative;min-height:72px}
 .ava{width:42px;height:42px;border-radius:50%;border:1px solid var(--blue);color:var(--blue);display:grid;place-items:center;font-size:17px}
@@ -310,6 +312,7 @@ const onDuty=()=>S.staff.filter(s=>s.inAt);
 const seg=v=>v.segs[v.segs.length-1];
 const qn=(g,k)=>(g.q&&+g.q[k])||1; /* 獲得の件数。入力がなければ1 */
 const wq=g=>g.w.reduce((a,k)=>a+qn(g,k),0);
+const anyWon=v=>v.segs.some(x=>x.w.length>0); /* 1つでも獲得があれば「成約なしで終了」は不可（担当変更の前の分も含む） */
 const prod=k=>PRODS.find(p=>p.k===k).n;
 const tnum=t=>t.name.replace('卓','');
 
@@ -506,7 +509,8 @@ serve(){
     ${v.segs.length>1?`<p class="sub">${v.segs.slice(0,-1).map(x=>`${esc(staffName(x.sid))}さんの分：提案${x.p.length}・獲得${x.w.length}`).join('　')}　／　ここからは${esc(staffName(sg.sid))}さんの分です</p>`:''}
     ${checklist(v,sg,false)}</section></div>`;
   const act=`<div class="action"><div class="sum"><span>提案<b>${sg.p.length}</b></span><span>獲得<b>${sg.w.length}</b>${wq(sg)>sg.w.length?`<small>（${wq(sg)}件）</small>`:''}</span></div>
-    <button class="btn onblue" id="serve-end" data-a="end">成約なしで終了</button>
+    ${anyWon(v)?'<span class="why" id="end-why">獲得した商材があるため、「成約なしで終了」は押せません。「成約へ」に進むか、「獲得した」を外してください。</span>':''}
+    <button class="btn onblue" id="serve-end" data-a="end" ${anyWon(v)?'disabled aria-describedby="end-why"':''}>成約なしで終了</button>
     <button class="btn onblue" id="serve-change" data-a="change">担当変更</button>
     <button class="btn" id="serve-won" data-a="won">成約へ${CHEV}</button></div>`;
   return {t:'接客',band:ctxBand(),body,act};
@@ -687,7 +691,7 @@ const A={
  act(d){const s=seg(V()); s.a=toggle(s.a,d.v);},
  change(){S.changing=true; S.afterPick=false; S.screen='pick';},
  won(){const v=V(); v.phase='after'; v.result='won'; S.changing=true; S.afterPick=true; S.screen='pick';},
- end(){closeVisit('lost');},
+ end(){if(anyWon(V())) return; closeVisit('lost');},
  tstart(d){V()[d.v].s=now();},
  tend(d){V()[d.v].e=now(); autoSurvey();},
  movenone(){V().move.none=true; autoSurvey();},
