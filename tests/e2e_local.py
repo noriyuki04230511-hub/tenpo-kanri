@@ -53,6 +53,13 @@ async def run(b,tag,w,h):
     await pg.locator('.person .un').last.click(); await pg.click('#dlg-yes'); await gone(pg)
     print(tag,'clock-in undone: attendance',a0,'->',admin(ATT),'| not clocked',await pg.locator('[data-a="clockin"]').count(),'| history',admin("select count(*) from events where action='attendance.undo' and before is not null"))
     await pg.locator('[data-a="clockin"]').first.click(); await saved(pg)
+    # 退勤と、その取り消し
+    OUT="select count(*) from attendance where shop_id=9000 and clocked_out_at is not null and work_date=(now() at time zone 'Asia/Tokyo')::date"
+    await pg.locator('[data-a="clockout"]').last.click(); await saved(pg); await shot('out')
+    await tiles(pg).nth(0).click(); rc=await pg.locator('[data-a="recv"]').count(); await pg.click('#go-home')
+    print(tag,'clock-out: db',admin(OUT),'| status',await pg.locator('.person.off .st').last.text_content(),'| selectable at reception',rc,'of 4')
+    await pg.locator('[data-k="clock_out"]').first.click(); print(tag,'clock-out undo popup:',await pg.text_content('#dlg-t'),'|',await pg.text_content('#dlg-gone'),'|',(await pg.text_content('#dlg-sub'))[:22]); await pg.click('#dlg-yes'); await gone(pg)
+    print(tag,'clock-out undone: db',admin(OUT),'| on duty buttons',await pg.locator('[data-a="clockout"]').count(),'| history',admin("select count(*) from events where action in ('attendance.clock_out','attendance.clock_out_undo')"))
     # 応援スタッフ
     await pg.click('#add-help'); await pg.fill('[data-f="name"]','試験'); await pg.click('#help-save'); await saved(pg); h0=admin("select count(*) from helpers"); p0=await pg.locator('.person:not(.add)').count()
     await pg.locator('[data-k="helper"]').last.click(); t=await pg.text_content('#dlg-t'); await pg.click('#dlg-yes'); await gone(pg)
@@ -70,6 +77,8 @@ async def run(b,tag,w,h):
     srv=await pg.evaluate("(async()=>{const p=JSON.parse(JSON.stringify(V())); p.closed=true; p.result='lost'; try{await call('app_save_visit',{p_device:DEV.device,p_secret:DEV.secret,p_visit:p}); return 'accepted'}catch(e){return e.status+' '+String(e.body).slice(0,90)}})()")
     print(tag,'server on lost close with win:',srv,'| still open',admin("select count(*) from visits where ended_at is null"))
     await pg.click('#w-carrier'); print(tag,'after unpress: end disabled',await pg.is_disabled('#serve-end'),'| why shown',await pg.locator('#end-why').count()); await pg.click('#w-carrier'); await pg.click('#qp-carrier'); await saved(pg)
+    sv=await pg.evaluate("(async()=>{const id=seg(V()).sid; const r=await call('app_clock_out',{p_device:DEV.device,p_secret:DEV.secret,p_actor:id}); A.clockout({id}); render(); return (r.error||'accepted')+' | '+document.getElementById('dlg-t').textContent+' | '+document.getElementById('dlg-err').textContent})()")
+    print(tag,'clock-out while serving:',sv); await pg.click('#dlg-no'); await gone(pg)
     await pg.click('#serve-won'); await pg.locator('[data-a="pick"]').nth(1).click()
     await pg.click('#setup-start'); await saved(pg); await pg.wait_for_timeout(5600); await shot('after')
     print(tag,'carrier hidden',await pg.query_selector('#p-carrier') is None, 'title',await pg.text_content('#tb-t'))

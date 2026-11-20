@@ -79,9 +79,12 @@ main{padding:24px 24px 40px;display:flex;flex-direction:column;gap:32px;max-widt
 .ava{width:42px;height:42px;border-radius:50%;border:1px solid var(--blue);color:var(--blue);display:grid;place-items:center;font-size:17px}
 .person.off .ava{border-color:var(--line);color:var(--ink2)}
 .person .nm{font-size:17px;font-weight:500;line-height:1.3}
-.person .st{font-size:12.5px;color:var(--ink2)}
+.person .st{font-size:12.5px;color:var(--ink2);white-space:nowrap}
 .person .btn{margin-left:auto}
 .person .un{margin-left:auto;font-size:13px;color:var(--ink2);text-decoration:underline;text-underline-offset:3px;min-height:44px;padding:0 4px;white-space:nowrap}
+.grid.staffg{grid-template-columns:repeat(auto-fill,minmax(264px,1fr))}
+.person .pc{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end}
+.person .pc .un{min-height:34px}
 .link.del{font-size:13.5px;color:var(--ink2);text-decoration:underline;text-underline-offset:3px}
 .ovl{position:fixed;inset:0;z-index:300;background:rgba(20,32,45,.5);display:flex;align-items:center;justify-content:center;padding:20px}
 .dlg{background:var(--surface);border-radius:6px;width:100%;max-width:460px;padding:24px;display:flex;flex-direction:column;gap:12px}
@@ -318,7 +321,7 @@ const T=()=>S.tables.find(x=>x.id===S.tid);
 const V=()=>T()&&T().v;
 const staffName=id=>{const s=S.staff.find(x=>x.id===id);return s?s.name:'—'};
 const typeOf=k=>TYPES.find(x=>x.k===k);
-const onDuty=()=>S.staff.filter(s=>s.inAt);
+const onDuty=()=>S.staff.filter(s=>s.inAt&&!s.outAt);
 const seg=v=>v.segs[v.segs.length-1];
 const qn=(g,k)=>(g.q&&+g.q[k])||1; /* 獲得の件数。入力がなければ1 */
 const wq=g=>g.w.reduce((a,k)=>a+qn(g,k),0);
@@ -328,12 +331,12 @@ const UERR={in_use:'すでに接客の記録に使われているため、取り
 const inUse=id=>S.tables.some(t=>t.v&&(t.v.recv===id||t.v.segs.some(g=>g.sid===id)));
 function modalHtml(){
   if(!MD) return '';
-  if(MD.err) return `<div class="ovl"><div class="dlg" role="alertdialog" aria-modal="true" aria-labelledby="dlg-t" aria-describedby="dlg-err"><h2 id="dlg-t">取り消せませんでした</h2><p id="dlg-err">${esc(MD.err)}</p><div class="acts"><button class="btn line" id="dlg-no" data-a="mno">閉じる</button></div></div></div>`;
-  const tt={clock_in:[`${MD.n}さんの出勤を取り消しますか`,'出勤を取り消す'],helper:[`応援スタッフ「${MD.n}」さんの追加を取り消しますか`,'追加を取り消す'],table:[`${MD.n}を消しますか`,'卓を消す'],reservation:[`予約（${MD.n}）を消しますか`,'予約を消す'],void:['この受付を取り消しますか','受付を取り消す']}[MD.k]||['取り消しますか','取り消す'];
+  if(MD.err) return `<div class="ovl"><div class="dlg" role="alertdialog" aria-modal="true" aria-labelledby="dlg-t" aria-describedby="dlg-err"><h2 id="dlg-t">${esc(MD.title||'取り消せませんでした')}</h2><p id="dlg-err">${esc(MD.err)}</p><div class="acts"><button class="btn line" id="dlg-no" data-a="mno">閉じる</button></div></div></div>`;
+  const tt={clock_in:[`${MD.n}さんの出勤を取り消しますか`,'出勤を取り消す'],clock_out:[`${MD.n}さんの退勤を取り消しますか`,'退勤を取り消す'],helper:[`応援スタッフ「${MD.n}」さんの追加を取り消しますか`,'追加を取り消す'],table:[`${MD.n}を消しますか`,'卓を消す'],reservation:[`予約（${MD.n}）を消しますか`,'予約を消す'],void:['この受付を取り消しますか','受付を取り消す']}[MD.k]||['取り消しますか','取り消す'];
   const more=MD.k==='reservation'?'<br>お客様のご都合によるキャンセルは、「取り消す」を使ってください（キャンセルとして記録に残ります）。':MD.k==='void'?'<br>来店区分を選び直す場合も、いまの記録は消え、選び直したところから新しく始まります。':'';
   return `<div class="ovl"><div class="dlg" role="alertdialog" aria-modal="true" aria-labelledby="dlg-t" aria-describedby="dlg-gone"><h2 id="dlg-t">${esc(tt[0])}</h2>
     <p class="gone" id="dlg-gone">このデータは残りません。</p>
-    <p class="sub" id="dlg-sub">記録を消し、集計にも入りません。取り消したことだけが、操作の履歴に残ります。${more}</p>
+    <p class="sub" id="dlg-sub">${MD.k==='clock_out'?'退勤の時刻を消し、出勤中に戻します。':'記録を消し、集計にも入りません。'}取り消したことだけが、操作の履歴に残ります。${more}</p>
     <div class="acts"><button class="btn line" id="dlg-no" data-a="mno" ${MD.busy?'disabled':''}>やめる</button><button class="btn danger" id="dlg-yes" data-a="myes" ${MD.busy?'disabled':''}>${MD.busy?'取り消しています':esc(tt[1])}</button></div></div></div>`;
 }
 function renderModal(){const c=document.getElementById('modal'); if(c.dataset.v===String(MV)) return; c.dataset.v=String(MV); c.innerHTML=modalHtml(); const b=document.getElementById('dlg-no'); if(b) b.focus();}
@@ -466,10 +469,13 @@ home(){
     <div class="b-right"><div class="b-stat"><b>${busy}</b> ／ ${S.tables.length} 卓<small>使用中</small></div>
     ${al.length?`<button class="b-alert" id="to-mgr" data-a="role" data-v="mgr">確認が必要<i>${al.length}</i></button>`:''}</div></div>`;
   const body=`
-  <section class="sec"><div class="row between"><h2>出勤</h2><span class="sub">出勤したら、自分の名前の「出勤」を押します</span></div>
-    <div class="grid g3">${[...S.staff].sort((a,b)=>(a.inAt?1:0)-(b.inAt?1:0)).map(s=>{const late=false;return `<div class="person ${s.inAt?'':'off'}">
-      ${late?`<span class="badge">開始から${mins(s.shift)}分</span>`:''}<span class="ava">${esc(s.name[0])}</span><span><span class="nm">${esc(s.name)}</span><br><span class="st">${s.inAt?'出勤 '+hm(s.inAt):esc(s.kind)}</span></span>
-      ${s.inAt?(inUse(s.id)?'':`<button class="un" id="un-${s.id}" data-a="ask" data-k="${s.id[0]==='h'?'helper':'clock_in'}" data-id="${s.id[0]==='h'?s.id.slice(1):s.id}" data-n="${esc(s.name)}" aria-label="${esc(s.name)}さんの${s.id[0]==='h'?'追加':'出勤'}を取り消す">取り消す</button>`):`<button class="btn blue s" id="in-${s.id}" data-a="clockin" data-id="${s.id}">出勤</button>`}</div>`}).join('')}
+  <section class="sec"><div class="row between"><h2>出勤</h2><span class="sub">出勤したら「出勤」、帰るときに「退勤」を押します</span></div>
+    <div class="grid g3 staffg">${[...S.staff].sort((a,b)=>(!a.inAt?0:a.outAt?2:1)-(!b.inAt?0:b.outAt?2:1)).map(s=>{const hp=s.id[0]==='h', on=s.inAt&&!s.outAt;
+      const un=inUse(s.id)?'':`<button class="un" id="un-${s.id}" data-a="ask" data-k="${hp?'helper':'clock_in'}" data-id="${hp?s.id.slice(1):s.id}" data-n="${esc(s.name)}">${hp?'追加':'出勤'}を取り消す</button>`;
+      return `<div class="person ${on?'':'off'}"><span class="ava">${esc(s.name[0])}</span><span><span class="nm">${esc(s.name)}</span><br><span class="st">${!s.inAt?esc(s.kind):s.outAt?`出勤 ${hm(s.inAt)}／退勤 ${hm(s.outAt)}`:'出勤 '+hm(s.inAt)}</span></span>
+      ${!s.inAt?`<button class="btn blue s" id="in-${s.id}" data-a="clockin" data-id="${s.id}">出勤</button>`
+        :s.outAt?`<button class="un" id="uo-${s.id}" data-a="ask" data-k="clock_out" data-id="${s.id}" data-n="${esc(s.name)}">退勤を取り消す</button>`
+        :`<span class="pc"><button class="btn line s" id="out-${s.id}" data-a="clockout" data-id="${s.id}" aria-label="${esc(s.name)}さんの退勤">退勤</button>${un}</span>`}</div>`}).join('')}
       <button class="person add" id="add-help" data-a="go" data-v="help">${PLUS}応援スタッフを追加</button></div></section>
   <section class="sec"><div class="row between"><h2>卓</h2>${(()=>{const rt=[...S.tables].reverse().find(t=>!t.v&&!t.auto); return rt&&S.tables.filter(t=>!t.auto).length>1?`<button class="link" id="rm-table" data-a="ask" data-k="table" data-id="${rt.id}" data-n="${esc(rt.name)}">空いている卓を1つ減らす</button>`:'';})()}</div>
     <div class="grid g3">${S.tables.map(t=>tile(t)).join('')}<button class="tile addt" id="add-table" data-a="addtable">${PLUS}卓を追加</button></div></section>
@@ -697,6 +703,9 @@ const A={
    else if(old) pushVisit(old);},
  go(d){S.screen=d.v;},
  clockin(d){const s=S.staff.find(s=>s.id===d.id); if(s) s.inAt=now(); rpcQ('app_clock_in',{p_actor:d.id});},
+ clockout(d){const s=S.staff.find(x=>x.id===d.id); if(!s||!s.inAt||s.outAt) return;
+   if(S.tables.some(t=>t.v&&(t.v.segs.length?seg(t.v).sid:t.v.recv)===d.id)){MD={k:'',id:'',n:'',title:'退勤できません',err:'接客の担当になっている卓があるため、退勤できません。担当変更か、接客の終了のあとに押してください。'}; MV++; return;}
+   s.outAt=now(); rpcQ('app_clock_out',{p_actor:d.id});},
  helpsave(){const h=S.help; if(!h.name.trim()) return; const id=uuid(), co=h.co.replace('（会社名を入力）',''), name=h.name.trim().slice(0,40);
    S.staff.push({id:'h'+id,name,kind:`${h.kind}・${co}`,shift:now(),inAt:now()});
    rpcQ('app_add_helper',{p_id:id,p_kind:({'イベント応援':'event','業務委託':'outsource','キャリアのヘルパー':'carrier'})[h.kind]||'event',p_company:co,p_name:name}); S.help={kind:'イベント応援',co:COMPANIES[0],name:''}; S.screen='home'; S.hist=[];},
