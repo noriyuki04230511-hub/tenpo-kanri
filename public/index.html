@@ -282,7 +282,8 @@ const PRODS=[
  {k:'energy',n:'電気・ガス'},{k:'water',n:'ウォーターサーバー'},{k:'repair',n:'スマホ・PC修理'}];
 const ACTS=[{k:'est',n:'見積書お渡し'},{k:'card',n:'名刺お渡し'},{k:'pros',n:'見込み登録'}];
 const EXTRA=['景品プレゼント','アンケート'];
-const COMPANIES=['見本A社','見本B社','見本C社','その他（会社名を入力）'];
+const OTHER='その他（会社名を入力）'; /* 会社名の一覧はデータベースの名簿から届く */
+const cos=()=>[...(S.companies||[]),OTHER];
 const SENIOR=['65〜69歳','70〜74歳','75〜79歳','80〜84歳','85歳以上'];
 const STEPS=['受付','来店区分','ヒアリング','接客','手続き','アンケート'];
 const CUST=['cust','custdone','survey','thanks'];
@@ -303,8 +304,8 @@ const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',
 
 function init(){
   S={role:'staff',screen:'home',tid:null,step:0,draft:null,surveys:0,surveyAvg:null,hist:[],recvId:null,changing:false,afterPick:false,
-   staff:[],tables:[],closed:[],feed:[],resv:[],shop:{name:''},ready:false,
-   help:{kind:'イベント応援',co:COMPANIES[0],name:''},rf:null,rfErr:''};
+   staff:[],tables:[],closed:[],feed:[],resv:[],shop:{name:''},ready:false,companies:[],
+   help:{kind:'イベント応援',co:'',coOther:'',name:'',err:''},rf:null,rfErr:''};
 }
 const RV=id=>S.resv.find(r=>r.id===id);
 const ymd=t=>{const d=new Date(t);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
@@ -330,8 +331,13 @@ const wq=g=>g.w.reduce((a,k)=>a+qn(g,k),0);
 let MD=null, MV=0;
 const UERR={in_use:'すでに接客の記録に使われているため、取り消せません。',not_found:'すでに取り消されています。',last_table:'卓は1つ以上必要です。最後の1つは消せません。',auto_table:'予約のために用意された卓です。予約の画面で操作してください。',bad_request:'取り消せませんでした。'};
 const inUse=id=>S.tables.some(t=>t.v&&(t.v.recv===id||t.v.segs.some(g=>g.sid===id)));
+const endLink=(t)=>`<div class="row"><button class="link" id="hear-end" data-a="ask" data-k="endhear">${t||'お客様が帰られた場合：ここで終了（成約なし）'}</button></div>`;
+function endHear(){const v=V(); if(!v) return; if(!v.h) v.by='none'; S.draft={}; closeVisit('lost');}
 function modalHtml(){
   if(!MD) return '';
+  if(MD.k==='endhear') return `<div class="ovl"><div class="dlg" role="alertdialog" aria-modal="true" aria-labelledby="dlg-t" aria-describedby="dlg-sub"><h2 id="dlg-t">ここで終了しますか（成約なし）</h2>
+    <p class="sub" id="dlg-sub">来店1組・成約なしとして記録に残り、卓は空きになります。途中まで選んだヒアリングは記録しません。<br>受付そのものが間違いだった場合は、「1つ前に戻る」で取り消してください。</p>
+    <div class="acts"><button class="btn line" id="dlg-no" data-a="mno">やめる</button><button class="btn danger" id="dlg-yes" data-a="myes">成約なしで終了する</button></div></div></div>`;
   if(MD.err) return `<div class="ovl"><div class="dlg" role="alertdialog" aria-modal="true" aria-labelledby="dlg-t" aria-describedby="dlg-err"><h2 id="dlg-t">${esc(MD.title||'取り消せませんでした')}</h2><p id="dlg-err">${esc(MD.err)}</p><div class="acts"><button class="btn line" id="dlg-no" data-a="mno">閉じる</button></div></div></div>`;
   const tt={clock_in:[`${MD.n}さんの出勤を取り消しますか`,'出勤を取り消す'],clock_out:[`${MD.n}さんの退勤を取り消しますか`,'退勤を取り消す'],helper:[`応援スタッフ「${MD.n}」さんの追加を取り消しますか`,'追加を取り消す'],table:[`${MD.n}を消しますか`,'卓を消す'],reservation:[`予約（${MD.n}）を消しますか`,'予約を消す'],void:['この受付を取り消しますか','受付を取り消す']}[MD.k]||['取り消しますか','取り消す'];
   const more=MD.k==='reservation'?'<br>お客様のご都合によるキャンセルは、「取り消す」を使ってください（キャンセルとして記録に残ります）。':MD.k==='void'?'<br>来店区分を選び直す場合も、いまの記録は消え、選び直したところから新しく始まります。':'';
@@ -491,11 +497,13 @@ recv(){
   <div class="grid g2">${onDuty().map(s=>`<button class="pickc" id="recv-${s.id}" data-a="recv" data-id="${s.id}"><span class="ava">${esc(s.name[0])}</span><span><b>${esc(s.name)}さん</b><span class="d">${esc(s.kind)}</span></span></button>`).join('')}</div></section>`};
 },
 help(){
-  const h=S.help;
+  const h=S.help, list=cos(); if(!list.includes(h.co)) h.co=list[0];
   return {t:'応援スタッフ',band:'',body:`<section class="box" style="max-width:560px"><h2>当日だけ入る外部スタッフを追加します</h2>
     <label for="help-kind">区分<select id="help-kind" data-f="kind">${['イベント応援','業務委託','キャリアのヘルパー'].map(c=>`<option ${c===h.kind?'selected':''}>${c}</option>`).join('')}</select></label>
-    <label for="help-co">会社名<select id="help-co" data-f="co">${COMPANIES.map(c=>`<option ${c===h.co?'selected':''}>${c}</option>`).join('')}</select></label>
+    <label for="help-co">会社名<select id="help-co" data-f="co">${list.map(c=>`<option ${c===h.co?'selected':''}>${esc(c)}</option>`).join('')}</select></label>
+    ${h.co===OTHER?`<label for="help-co-other">会社名を入力<input type="text" id="help-co-other" data-f="coOther" maxlength="60" value="${esc(h.coOther||'')}" placeholder="例：株式会社〇〇"></label>`:''}
     <label for="help-name">氏名<input type="text" id="help-name" data-f="name" value="${esc(h.name)}" placeholder="例：田中"></label>
+    ${h.err?`<p class="err" id="help-err" role="alert">${esc(h.err)}</p>`:''}
     <div><button class="btn" id="help-save" data-a="helpsave">追加して出勤にする${CHEV}</button></div></section>`};
 },
 type(){
@@ -505,7 +513,7 @@ type(){
 mode(){
   return {t:'ヒアリング',band:ctxBand(),body:`<section class="sec"><h2>ヒアリングの方法を選びます</h2><div class="grid g2">
     <button class="pickc" id="mode-cust" data-a="hear" data-v="customer"><span><b>お客様に記入していただく</b><span class="d">iPadをお渡しします。1問ずつ、選ぶだけで終わります</span></span></button>
-    <button class="pickc" id="mode-staff" data-a="hear" data-v="staff"><span><b>スタッフが記入する</b><span class="d">お客様に伺いながら、1画面で入力します</span></span></button></div></section>`};
+    <button class="pickc" id="mode-staff" data-a="hear" data-v="staff"><span><b>スタッフが記入する</b><span class="d">お客様に伺いながら、1画面で入力します</span></span></button></div>${endLink()}</section>`};
 },
 cust(){
   const q=QS[S.step], cur=S.draft[q.k];
@@ -515,18 +523,20 @@ cust(){
     <h2>${q.q}</h2>
     <div class="opts">${q.o.map((o,i)=>`<button class="opt" id="opt-${i}" aria-pressed="${cur===o}" data-a="ans" data-v="${esc(o)}">${o}</button>`).join('')}</div>
     <div class="row between"><button class="btn line" id="q-back" data-a="qback">${S.step===0?'やめる':'前の質問に戻る'}</button>
-      <button class="btn" id="q-next" data-a="qnext" ${cur?'':'disabled'}>${S.step===QS.length-1?'これで終わる':'次へ'}${CHEV}</button></div></section>`};
+      <button class="btn" id="q-next" data-a="qnext" ${cur?'':'disabled'}>${S.step===QS.length-1?'これで終わる':'次へ'}${CHEV}</button></div></section>
+    ${endLink('スタッフ用：お客様が帰られた場合は、ここで終了（成約なし）')}`};
 },
 custdone(){
   return {t:'ご記入ありがとうございました',band:'',body:`<section class="paper" style="text-align:center;align-items:center;padding-top:40px"><h2>ご記入ありがとうございました</h2><p style="font-size:21px;font-weight:400">iPadをスタッフにお渡しください。</p>
-    <button class="btn" id="cust-done" data-a="go" data-v="pick">スタッフが受け取った${CHEV}</button></section>`};
+    <button class="btn" id="cust-done" data-a="go" data-v="pick">スタッフが受け取った${CHEV}</button></section>
+    ${endLink('スタッフ用：お客様が帰られた場合は、ここで終了（成約なし）')}`};
 },
 staffhear(){
   const d=S.draft, left=QS.filter(q=>!d[q.k]).length;
   return {t:'ヒアリング入力',band:ctxBand(),body:`<section class="box" style="gap:24px"><p class="sub">5問すべてを選ぶと、担当を選べます（「お渡し・実施したもの」は任意）。年代は見た目で決めず、お客様に伺って選びます</p>
     ${QS.map(q=>`<div class="sec" style="gap:10px"><h2>${q.q}${d[q.k]?'':'<span class="chip noshow" style="margin-left:10px;font-weight:400">未選択</span>'}</h2><div class="row" style="gap:8px">${q.o.map(o=>`<button class="tg a auto" aria-pressed="${d[q.k]===o}" data-a="sans" data-k="${q.k}" data-v="${esc(o)}">${CHK}${o}</button>`).join('')}</div></div>`).join('')}
     <div class="sec" style="gap:10px"><h2>お渡し・実施したもの（任意）</h2><div class="row" style="gap:8px">${EXTRA.map((o,i)=>`<button class="tg a auto" id="extra-${i}" aria-pressed="${(d.extra||[]).includes(o)}" data-a="sans" data-k="extra" data-v="${o}">${CHK}${o}</button>`).join('')}</div></div></section>`,
-   act:`<div class="action"><div class="sum" id="sh-left">${left?`あと${left}問を選ぶと進めます`:'5問の入力が済みました'}</div><button class="btn" id="sh-done" data-a="shdone" ${left?'disabled':''}>担当を選ぶ${CHEV}</button></div>`};
+   act:`<div class="action"><div class="sum" id="sh-left">${left?`あと${left}問を選ぶと進めます`:'5問の入力が済みました'}</div><button class="btn onblue" id="hear-end" data-a="ask" data-k="endhear">ここで終了（成約なし）</button><button class="btn" id="sh-done" data-a="shdone" ${left?'disabled':''}>担当を選ぶ${CHEV}</button></div>`};
 },
 pick(){
   const v=V(), ch=S.changing, ap=S.afterPick;
@@ -536,7 +546,7 @@ pick(){
   let list=onDuty().filter(s=>ap||!ch||s.id!==seg(v).sid);
   list=[...list.filter(s=>s.id===keep),...list.filter(s=>s.id!==keep)];
   return {t:title,band:ctxBand(),body:`<section class="sec"><h2>${sub}</h2>
-  <div class="grid g2">${list.map(s=>`<button class="pickc ${s.id===keep?'keep':''}" id="pick-${s.id}" data-a="pick" data-id="${s.id}"><span class="ava">${esc(s.name[0])}</span><span><b>${esc(s.name)}さん</b><span class="d">${s.id===keep?(ap?'接客の担当のまま続ける':'受付担当のまま接客する'):esc(s.kind)}</span></span></button>`).join('')}</div></section>`};
+  <div class="grid g2">${list.map(s=>`<button class="pickc ${s.id===keep?'keep':''}" id="pick-${s.id}" data-a="pick" data-id="${s.id}"><span class="ava">${esc(s.name[0])}</span><span><b>${esc(s.name)}さん</b><span class="d">${s.id===keep?(ap?'接客の担当のまま続ける':'受付担当のまま接客する'):esc(s.kind)}</span></span></button>`).join('')}</div>${!ap&&!ch?endLink():''}</section>`};
 },
 serve(){
   const v=V(), sg=seg(v), sug=suggest(v.h);
@@ -550,10 +560,11 @@ serve(){
     ${v.segs.length>1?`<p class="sub">${v.segs.slice(0,-1).map(x=>`${esc(staffName(x.sid))}さんの分：提案${x.p.length}・獲得${x.w.length}`).join('　')}　／　ここからは${esc(staffName(sg.sid))}さんの分です</p>`:''}
     ${checklist(v,sg,false)}</section></div>`;
   const act=`<div class="action"><div class="sum"><span>提案<b>${sg.p.length}</b></span><span>獲得<b>${sg.w.length}</b>${wq(sg)>sg.w.length?`<small>（${wq(sg)}件）</small>`:''}</span></div>
-    ${anyWon(v)?'<span class="why" id="end-why">獲得した商材があるため、「成約なしで終了」は押せません。「成約へ」に進むか、「獲得した」を外してください。</span>':''}
+    ${anyWon(v)?'<span class="why" id="end-why">獲得した商材があるため、「成約なしで終了」は押せません。「成約へ」に進むか、「獲得した」を外してください。</span>'
+      :'<span class="why" id="won-why">獲得した商材がまだ無いため、「成約へ」は押せません。獲得した商材に「獲得した」を付けると押せます。</span>'}
     <button class="btn onblue" id="serve-end" data-a="end" ${anyWon(v)?'disabled aria-describedby="end-why"':''}>成約なしで終了</button>
     <button class="btn onblue" id="serve-change" data-a="change">担当変更</button>
-    <button class="btn" id="serve-won" data-a="won">成約へ${CHEV}</button></div>`;
+    <button class="btn" id="serve-won" data-a="won" ${anyWon(v)?'':'disabled aria-describedby="won-why"'}>成約へ${CHEV}</button></div>`;
   return {t:'接客',band:ctxBand(),body,act};
 },
 after(){
@@ -695,7 +706,7 @@ const A={
  home(){S.screen='home';S.changing=false;S.afterPick=false;S.hist=[];},
  ask(d){MD={k:d.k,id:d.id,n:d.n||''}; MV++;},
  mno(){MD=null; MV++;},
- myes(){const m=MD; if(!m||m.busy) return; if(m.k==='void'){MD=null; MV++; A.back({sure:'1'}); window.scrollTo(0,0); return;} m.busy=true; MV++; undoCall(m);},
+ myes(){const m=MD; if(!m||m.busy) return; if(m.k==='endhear'){MD=null; MV++; endHear(); window.scrollTo(0,0); return;} if(m.k==='void'){MD=null; MV++; A.back({sure:'1'}); window.scrollTo(0,0); return;} m.busy=true; MV++; undoCall(m);},
  back(d){const h=S.hist; if(!h.length) return;
    if(!(d&&d.sure)){const c0=V(); if(c0){const p0=JSON.parse(h[h.length-1]), t0=(p0.tables||[]).find(x=>x.id===S.tid), o0=t0&&t0.v; if(!o0||o0.id!==c0.id){MD={k:'void',id:'',n:''}; MV++; return;}}}
    const role=S.role, cur=V(), tid=S.tid; S={...JSON.parse(h.pop()),hist:h,role};
@@ -707,9 +718,11 @@ const A={
  clockout(d){const s=S.staff.find(x=>x.id===d.id); if(!s||!s.inAt||s.outAt) return;
    if(S.tables.some(t=>t.v&&(t.v.segs.length?seg(t.v).sid:t.v.recv)===d.id)){MD={k:'',id:'',n:'',title:'退勤できません',err:'接客の担当になっている卓があるため、退勤できません。担当変更か、接客の終了のあとに押してください。'}; MV++; return;}
    s.outAt=now(); rpcQ('app_clock_out',{p_actor:d.id});},
- helpsave(){const h=S.help; if(!h.name.trim()) return; const id=uuid(), co=h.co.replace('（会社名を入力）',''), name=h.name.trim().slice(0,40);
+ helpsave(){const h=S.help, co=h.co===OTHER?(h.coOther||'').trim().slice(0,60):h.co;
+   if(!co){h.err='会社名を入力してください。';return;} if(!h.name.trim()){h.err='氏名を入力してください。';return;}
+   const id=uuid(), name=h.name.trim().slice(0,40);
    S.staff.push({id:'h'+id,name,kind:`${h.kind}・${co}`,shift:now(),inAt:now()});
-   rpcQ('app_add_helper',{p_id:id,p_kind:({'イベント応援':'event','業務委託':'outsource','キャリアのヘルパー':'carrier'})[h.kind]||'event',p_company:co,p_name:name}); S.help={kind:'イベント応援',co:COMPANIES[0],name:''}; S.screen='home'; S.hist=[];},
+   rpcQ('app_add_helper',{p_id:id,p_kind:({'イベント応援':'event','業務委託':'outsource','キャリアのヘルパー':'carrier'})[h.kind]||'event',p_company:co,p_name:name}); S.help={kind:'イベント応援',co:'',coOther:'',name:'',err:''}; S.screen='home'; S.hist=[];},
  addtable(){const id=uuid(), n=Math.max(0,...S.tables.map(t=>+String(t.name).replace(/\D/g,'')||0))+1; S.tables.push({id,name:'卓'+n,v:null}); rpcQ('app_table',{p_op:'add',p_id:id});},
  rmtable(){for(let i=S.tables.length-1;i>=0;i--){if(!S.tables[i].v&&!S.tables[i].auto){const id=S.tables[i].id; S.tables.splice(i,1); rpcQ('app_table',{p_op:'remove',p_id:id}); break;}}},
  table(d){S.tid=d.id; const v=V(); S.changing=false; S.afterPick=false;
@@ -740,7 +753,7 @@ const A={
  qty(d){const s=seg(V()); if(!s.w.includes(d.v)) return; const n=Math.max(1,Math.min(20,qn(s,d.v)+(+d.d))); s.q=s.q||{}; if(n>1) s.q[d.v]=n; else delete s.q[d.v];},
  act(d){const s=seg(V()); s.a=toggle(s.a,d.v);},
  change(){S.changing=true; S.afterPick=false; S.screen='pick';},
- won(){const v=V(); v.phase='after'; v.result='won'; S.changing=true; S.afterPick=true; S.screen='pick';},
+ won(){const v=V(); if(!anyWon(v)) return; v.phase='after'; v.result='won'; S.changing=true; S.afterPick=true; S.screen='pick';},
  end(){if(anyWon(V())) return; closeVisit('lost');},
  tstart(d){V()[d.v].s=now();},
  tend(d){V()[d.v].e=now(); autoSurvey();},
@@ -765,7 +778,7 @@ document.addEventListener('click',e=>{const el=e.target.closest('[data-a]'); if(
   const before=S.screen+S.role; if(SNAP.includes(a)) snap(); f(el.dataset);
   if(VSYNC.includes(a)){const v=V(); if(v) pushVisit(v);}
   render(); if(S.screen+S.role!==before) window.scrollTo(0,0);});
-function field(e){const d=e.target.dataset; if(d&&d.f){(d.g==='rf'?S.rf:S.help)[d.f]=e.target.value;}}
+function field(e){const d=e.target.dataset; if(d&&d.f){(d.g==='rf'?S.rf:S.help)[d.f]=e.target.value; if(d.f==='co'&&e.type==='change'){S.help.err=''; render(); const x=document.getElementById('help-co-other'); if(x) x.focus();}}}
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&MD&&!MD.busy){MD=null; MV++; render();}});
 document.addEventListener('input',field); document.addEventListener('change',field);
 setInterval(()=>{if(!DEV) return; const a=document.activeElement; if(a&&(a.tagName==='INPUT'||a.tagName==='SELECT')) return; if(RSCREEN.includes(S.screen)&&S.screen==='resvnew'&&S.role==='staff') return; render();},20000);
@@ -803,7 +816,7 @@ async function pump(){
 }
 function applyFloor(f){
   skew=f.now-Date.now();
-  S.devRole=f.role; S.staff=f.staff; S.tables=f.tables; S.closed=f.closed; S.resv=f.resv; S.feed=f.feed; S.surveys=f.surveys; S.surveyAvg=f.surveyAvg; S.shop=f.shop; S.ready=true;
+  S.devRole=f.role; S.companies=f.companies||[]; S.staff=f.staff; S.tables=f.tables; S.closed=f.closed; S.resv=f.resv; S.feed=f.feed; S.surveys=f.surveys; S.surveyAvg=f.surveyAvg; S.shop=f.shop; S.ready=true;
   if(S.role==='staff'&&!['home','resv','resvnew','help'].includes(S.screen)){const t=T(); if(!t||(!t.v&&!['recv','type'].includes(S.screen))){S.screen='home'; S.hist=[];}}
   const a=document.activeElement; if(a&&(a.tagName==='INPUT'||a.tagName==='SELECT')) return;
   render();

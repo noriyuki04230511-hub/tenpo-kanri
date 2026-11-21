@@ -61,6 +61,10 @@ async def run(b,tag,w,h):
     await pg.locator('[data-k="clock_out"]').first.click(); print(tag,'clock-out undo popup:',await pg.text_content('#dlg-t'),'|',await pg.text_content('#dlg-gone'),'|',(await pg.text_content('#dlg-sub'))[:22]); await pg.click('#dlg-yes'); await gone(pg)
     print(tag,'clock-out undone: db',admin(OUT),'| on duty buttons',await pg.locator('[data-a="clockout"]').count(),'| history',admin("select count(*) from events where action in ('attendance.clock_out','attendance.clock_out_undo')"))
     # 応援スタッフ
+    await pg.click('#add-help'); print(tag,'company options',await pg.locator('#help-co option').all_text_contents(),'| other input before',await pg.locator('#help-co-other').count())
+    await pg.select_option('#help-co','その他（会社名を入力）'); await pg.fill('[data-f="name"]','試験'); await pg.click('#help-save'); print(tag,'other w/o name:',await pg.text_content('#help-err'),'| helpers',admin("select count(*) from helpers"))
+    await pg.fill('#help-co-other','試験商事'); await pg.click('#help-save'); await saved(pg); print(tag,'other saved:',admin("select company_other||'/'||coalesce(company_id::text,'-') from helpers order by created_at desc limit 1"),'| card',(await pg.locator('.person:not(.add)').last.text_content()).strip()[:40])
+    await pg.locator('[data-k="helper"]').last.click(); await pg.click('#dlg-yes'); await gone(pg)
     await pg.click('#add-help'); await pg.fill('[data-f="name"]','試験'); await pg.click('#help-save'); await saved(pg); h0=admin("select count(*) from helpers"); p0=await pg.locator('.person:not(.add)').count()
     await pg.locator('[data-k="helper"]').last.click(); t=await pg.text_content('#dlg-t'); await pg.click('#dlg-yes'); await gone(pg)
     print(tag,'helper undone:',t,'| helpers',h0,'->',admin("select count(*) from helpers"),'| cards',p0,'->',await pg.locator('.person:not(.add)').count())
@@ -76,7 +80,10 @@ async def run(b,tag,w,h):
     print(tag,'end disabled with win',await pg.is_disabled('#serve-end'),'| why shown',await pg.locator('#end-why').count())
     srv=await pg.evaluate("(async()=>{const p=JSON.parse(JSON.stringify(V())); p.closed=true; p.result='lost'; try{await call('app_save_visit',{p_device:DEV.device,p_secret:DEV.secret,p_visit:p}); return 'accepted'}catch(e){return e.status+' '+String(e.body).slice(0,90)}})()")
     print(tag,'server on lost close with win:',srv,'| still open',admin("select count(*) from visits where ended_at is null"))
-    await pg.click('#w-carrier'); print(tag,'after unpress: end disabled',await pg.is_disabled('#serve-end'),'| why shown',await pg.locator('#end-why').count()); await pg.click('#w-carrier'); await pg.click('#qp-carrier'); await saved(pg)
+    await pg.click('#w-carrier'); print(tag,'after unpress: end disabled',await pg.is_disabled('#serve-end'),'| why shown',await pg.locator('#end-why').count(),'| won disabled',await pg.is_disabled('#serve-won'),'|',await pg.text_content('#won-why')); await saved(pg); await shot('nowin')
+    srv=await pg.evaluate("(async()=>{const p=JSON.parse(JSON.stringify(V())); p.phase='after'; p.result='won'; try{await call('app_save_visit',{p_device:DEV.device,p_secret:DEV.secret,p_visit:p}); return 'accepted'}catch(e){return e.status+' '+String(e.body).slice(0,90)}})()")
+    print(tag,'server on won with 0 product:',srv,'| result in db',admin("select coalesce(result,'null')||'/'||phase from visits where ended_at is null"))
+    await pg.click('#w-carrier'); print(tag,'with win: won disabled',await pg.is_disabled('#serve-won'),'| won-why',await pg.locator('#won-why').count()); await pg.click('#qp-carrier'); await saved(pg)
     sv=await pg.evaluate("(async()=>{const id=seg(V()).sid; const r=await call('app_clock_out',{p_device:DEV.device,p_secret:DEV.secret,p_actor:id}); A.clockout({id}); render(); return (r.error||'accepted')+' | '+document.getElementById('dlg-t').textContent+' | '+document.getElementById('dlg-err').textContent})()")
     print(tag,'clock-out while serving:',sv); await pg.click('#dlg-no'); await gone(pg)
     await pg.click('#serve-won'); await pg.locator('[data-a="pick"]').nth(1).click()
@@ -87,6 +94,16 @@ async def run(b,tag,w,h):
     # guide skip
     await tiles(pg).nth(2).click(); await pg.locator('[data-a="recv"]').nth(1).click(); await pg.click('#type-in_guide'); print(tag,'guide ->',await pg.text_content('#tb-t')); await pg.click('#serve-end'); await saved(pg)
     await tiles(pg).nth(2).click(); await pg.locator('[data-a="recv"]').nth(1).click(); await pg.click('#type-in_guide_h'); print(tag,'guide with hearing ->',await pg.text_content('#tb-t'),'| types',await pg.evaluate("9")); await pg.click('#mode-staff'); await hear(pg,'60〜64歳'); await pg.click('#sh-done'); await pg.locator('[data-a="pick"]').first.click(); await pg.click('#serve-end'); await saved(pg)
+    # ヒアリングの途中で終了（成約なし）
+    LAST="select phase||'/'||coalesce(result,'null')||'/'||coalesce(hearing_by,'null')||'/h'||(select count(*) from visit_hearings h where h.visit_id=v.id)||'/g'||(select count(*) from visit_segments g where g.visit_id=v.id)||'/ended '||(ended_at is not null) from visits v order by started_at desc limit 1"
+    await tiles(pg).nth(2).click(); await pg.locator('[data-a="recv"]').nth(1).click(); await pg.click('#type-in_guide_h'); await pg.click('#hear-end'); await shot('endhear')
+    print(tag,'end at mode: dlg',await pg.text_content('#dlg-t'),'|',(await pg.text_content('#dlg-sub'))[:40],'| gone text',await pg.locator('#dlg-gone').count()); await pg.click('#dlg-no'); await gone(pg)
+    await pg.click('#mode-cust'); print(tag,'cust screen link',(await pg.text_content('#hear-end')).strip()); await pg.click('#opt-0'); await pg.click('#q-next'); await pg.click('#hear-end'); await pg.click('#dlg-yes'); await gone(pg); await saved(pg)
+    print(tag,'ended at cust q2 ->',await pg.text_content('#tb-t'),'| db',admin(LAST),'| open',admin("select count(*) from visits where ended_at is null"))
+    await tiles(pg).nth(2).click(); await pg.locator('[data-a="recv"]').first.click(); await pg.click('#type-out'); await pg.click('[data-k="age"][data-v="70〜74歳"]'); await pg.click('#hear-end'); await pg.click('#dlg-yes'); await gone(pg); await saved(pg)
+    print(tag,'ended at staffhear (1 of 5) -> db',admin(LAST))
+    await tiles(pg).nth(2).click(); await pg.locator('[data-a="recv"]').first.click(); await pg.click('#type-out'); await hear(pg,'60〜64歳'); await pg.click('#sh-done'); await pg.click('#hear-end'); await pg.click('#dlg-yes'); await gone(pg); await saved(pg)
+    print(tag,'ended at pick (hearing done) -> db',admin(LAST),'| tables',await tiles(pg).count())
     # back = void
     n0=admin("select count(*) from visits")
     await tiles(pg).nth(2).click(); await pg.locator('[data-a="recv"]').first.click(); await pg.click('#type-in_meo'); await saved(pg)
