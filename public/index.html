@@ -85,6 +85,13 @@ main{padding:24px 24px 40px;display:flex;flex-direction:column;gap:32px;max-widt
 .grid.staffg{grid-template-columns:repeat(auto-fill,minmax(264px,1fr))}
 .person .pc{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end}
 .person .pc .un{min-height:34px}
+.person .st.warn{color:var(--red)}
+.cnt-g{border:1px solid var(--line);border-radius:6px;padding:14px 16px;margin:0 0 14px}
+.cnt-g h3{font-size:15px;font-weight:600;margin:0 0 10px}
+.cnt-g .two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.cnt-g label{display:block;font-size:14px;color:var(--ink2)}
+.cnt-g input{font:inherit;font-size:22px;min-height:54px;border:1px solid var(--line);border-radius:4px;padding:6px 14px;background:#fff;color:var(--ink);width:100%;text-align:right;font-variant-numeric:tabular-nums}
+.cnt-g input:focus{outline:2px solid var(--blue);outline-offset:1px}
 .link.del{font-size:13.5px;color:var(--ink2);text-decoration:underline;text-underline-offset:3px}
 .ovl{position:fixed;inset:0;z-index:300;background:rgba(20,32,45,.5);display:flex;align-items:center;justify-content:center;padding:20px}
 .dlg{background:var(--surface);border-radius:6px;width:100%;max-width:460px;padding:24px;display:flex;flex-direction:column;gap:12px}
@@ -343,7 +350,7 @@ function modalHtml(){
   const more=MD.k==='reservation'?'<br>お客様のご都合によるキャンセルは、「取り消す」を使ってください（キャンセルとして記録に残ります）。':MD.k==='void'?'<br>来店区分を選び直す場合も、いまの記録は消え、選び直したところから新しく始まります。':'';
   return `<div class="ovl"><div class="dlg" role="alertdialog" aria-modal="true" aria-labelledby="dlg-t" aria-describedby="dlg-gone"><h2 id="dlg-t">${esc(tt[0])}</h2>
     <p class="gone" id="dlg-gone">このデータは残りません。</p>
-    <p class="sub" id="dlg-sub">${MD.k==='clock_out'?'退勤の時刻を消し、出勤中に戻します。':'記録を消し、集計にも入りません。'}取り消したことだけが、操作の履歴に残ります。${more}</p>
+    <p class="sub" id="dlg-sub">${MD.k==='clock_out'?'退勤の時刻と、入力した本日の数字を消し、出勤中に戻します。数字は、次に退勤を押すときに入れ直します。':'記録を消し、集計にも入りません。'}取り消したことだけが、操作の履歴に残ります。${more}</p>
     <div class="acts"><button class="btn line" id="dlg-no" data-a="mno" ${MD.busy?'disabled':''}>やめる</button><button class="btn danger" id="dlg-yes" data-a="myes" ${MD.busy?'disabled':''}>${MD.busy?'取り消しています':esc(tt[1])}</button></div></div></div>`;
 }
 function renderModal(){const c=document.getElementById('modal'); if(c.dataset.v===String(MV)) return; c.dataset.v=String(MV); c.innerHTML=modalHtml(); const b=document.getElementById('dlg-no'); if(b) b.focus();}
@@ -476,12 +483,12 @@ home(){
     <div class="b-right"><div class="b-stat"><b>${busy}</b> ／ ${S.tables.length} 卓<small>使用中</small></div>
     ${al.length?`<button class="b-alert" id="to-mgr" data-a="role" data-v="mgr">確認が必要<i>${al.length}</i></button>`:''}</div></div>`;
   const body=`
-  <section class="sec"><div class="row between"><h2>出勤</h2><span class="sub">出勤したら「出勤」、帰るときに「退勤」を押します</span></div>
+  <section class="sec"><div class="row between"><h2>出勤</h2><span class="sub">出勤したら「出勤」、帰るときに「退勤」を押して本日の数字を入れます</span></div>
     <div class="grid g3 staffg">${[...S.staff].sort((a,b)=>(!a.inAt?0:a.outAt?2:1)-(!b.inAt?0:b.outAt?2:1)).map(s=>{const hp=s.id[0]==='h', on=s.inAt&&!s.outAt;
       const un=inUse(s.id)?'':`<button class="un" id="un-${s.id}" data-a="ask" data-k="${hp?'helper':'clock_in'}" data-id="${hp?s.id.slice(1):s.id}" data-n="${esc(s.name)}">${hp?'追加':'出勤'}を取り消す</button>`;
-      return `<div class="person ${on?'':'off'}"><span class="ava">${esc(s.name[0])}</span><span><span class="nm">${esc(s.name)}</span><br><span class="st">${!s.inAt?esc(s.kind):s.outAt?`出勤 ${hm(s.inAt)}／退勤 ${hm(s.outAt)}`:'出勤 '+hm(s.inAt)}</span></span>
+      return `<div class="person ${on?'':'off'}"><span class="ava">${esc(s.name[0])}</span><span><span class="nm">${esc(s.name)}</span><br><span class="st">${!s.inAt?esc(s.kind):s.outAt?`出勤 ${hm(s.inAt)}／退勤 ${hm(s.outAt)}`:'出勤 '+hm(s.inAt)}</span>${s.outAt?`<br><span class="st ${s.cnt?'':'warn'}" id="cs-${s.id}">${s.cnt?'本日の数字 入力済み':'本日の数字 未入力'}</span>`:''}</span>
       ${!s.inAt?`<button class="btn blue s" id="in-${s.id}" data-a="clockin" data-id="${s.id}">出勤</button>`
-        :s.outAt?`<button class="un" id="uo-${s.id}" data-a="ask" data-k="clock_out" data-id="${s.id}" data-n="${esc(s.name)}">退勤を取り消す</button>`
+        :s.outAt?`<span class="pc">${s.cnt?'':`<button class="btn line s" id="cnt-${s.id}" data-a="clockout" data-id="${s.id}" aria-label="${esc(s.name)}さんの本日の数字を入力">数字を入力</button>`}<button class="un" id="uo-${s.id}" data-a="ask" data-k="clock_out" data-id="${s.id}" data-n="${esc(s.name)}">退勤を取り消す</button></span>`
         :`<span class="pc"><button class="btn line s" id="out-${s.id}" data-a="clockout" data-id="${s.id}" aria-label="${esc(s.name)}さんの退勤">退勤</button>${un}</span>`}</div>`}).join('')}
       <button class="person add" id="add-help" data-a="go" data-v="help">${PLUS}応援スタッフを追加</button></div></section>
   <section class="sec"><div class="row between"><h2>卓</h2>${(()=>{const rt=[...S.tables].reverse().find(t=>!t.v&&!t.auto); return rt&&S.tables.filter(t=>!t.auto).length>1?`<button class="link" id="rm-table" data-a="ask" data-k="table" data-id="${rt.id}" data-n="${esc(rt.name)}">空いている卓を1つ減らす</button>`:'';})()}</div>
@@ -495,6 +502,17 @@ home(){
 recv(){
   return {t:'受付担当',band:ctxBand(),body:`${resvNote()}<section class="sec"><h2>受付をしたスタッフを選びます</h2>
   <div class="grid g2">${onDuty().map(s=>`<button class="pickc" id="recv-${s.id}" data-a="recv" data-id="${s.id}"><span class="ava">${esc(s.name[0])}</span><span><b>${esc(s.name)}さん</b><span class="d">${esc(s.kind)}</span></span></button>`).join('')}</div></section>`};
+},
+dayend(){
+  const e=S.de, s=e&&S.staff.find(x=>x.id===e.id); if(!s) return views.home();
+  const inp=(k,l)=>`<label for="de-${k}">${l}<input type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="4" id="de-${k}" data-g="de" data-f="${k}" value="${esc(e.v[k])}" placeholder="0"></label>`;
+  return {t:s.outAt?'本日の数字':'退勤',band:'',body:`<section class="box" style="max-width:600px"><h2>${esc(s.name)}さんの本日の数字を入れます</h2>
+    <p class="sub">5つとも入力すると${s.outAt?'記録されます':'退勤になります'}。していない項目は 0 を入れます。接客・成約・提案・獲得は、卓での記録から自動で集計されるので、ここでは入力しません。</p>
+    <div class="cnt-g"><h3>アウトバウンド</h3><div class="two">${inp('oc','声かけ母数（人）')}${inp('os','立ち止まり数（人）')}</div></div>
+    <div class="cnt-g"><h3>什器付き</h3><div class="two">${inp('fc','声かけ母数（人）')}${inp('ft','立ち話数（人）')}</div></div>
+    <div class="cnt-g"><h3>名刺</h3>${inp('cd','名刺お渡し数（枚）')}</div>
+    ${e.err?`<p class="err" id="de-err" role="alert">${esc(e.err)}</p>`:''}
+    <div class="row" style="gap:12px;flex-wrap:wrap"><button class="btn line" id="de-cancel" data-a="decancel">${s.outAt?'あとで入力する':'やめる（退勤しない）'}</button><button class="btn" id="de-save" data-a="desave">${s.outAt?'入力する':'入力して退勤する'}${CHEV}</button></div></section>`};
 },
 help(){
   const h=S.help, list=cos(); if(!list.includes(h.co)) h.co=list[0];
@@ -715,9 +733,16 @@ const A={
    else if(old) pushVisit(old);},
  go(d){S.screen=d.v;},
  clockin(d){const s=S.staff.find(s=>s.id===d.id); if(s) s.inAt=now(); rpcQ('app_clock_in',{p_actor:d.id});},
- clockout(d){const s=S.staff.find(x=>x.id===d.id); if(!s||!s.inAt||s.outAt) return;
-   if(S.tables.some(t=>t.v&&(t.v.segs.length?seg(t.v).sid:t.v.recv)===d.id)){MD={k:'',id:'',n:'',title:'退勤できません',err:'接客の担当になっている卓があるため、退勤できません。担当変更か、接客の終了のあとに押してください。'}; MV++; return;}
-   s.outAt=now(); rpcQ('app_clock_out',{p_actor:d.id});},
+ clockout(d){const s=S.staff.find(x=>x.id===d.id); if(!s||!s.inAt||(s.outAt&&s.cnt)) return;
+   if(!s.outAt&&S.tables.some(t=>t.v&&(t.v.segs.length?seg(t.v).sid:t.v.recv)===d.id)){MD={k:'',id:'',n:'',title:'退勤できません',err:'接客の担当になっている卓があるため、退勤できません。担当変更か、接客の終了のあとに押してください。'}; MV++; return;}
+   S.de={id:d.id,v:{oc:'',os:'',fc:'',ft:'',cd:''},err:''}; S.screen='dayend'; S.hist=[];},
+ desave(){const e=S.de, s=e&&S.staff.find(x=>x.id===e.id); if(!s) {S.screen='home'; return;}
+   const K=['oc','os','fc','ft','cd'], v={}; for(const k of K){const x=document.getElementById('de-'+k); if(x) e.v[k]=x.value.replace(/\D/g,'').slice(0,4); v[k]=e.v[k];}
+   if(K.some(k=>v[k]==='')){e.err='5つとも入力してください。していない項目は 0 を入れます。';return;}
+   if(+v.os>+v.oc){e.err='アウトバウンドの「立ち止まり数」が「声かけ母数」より多くなっています。数字を確かめてください。';return;}
+   if(+v.ft>+v.fc){e.err='什器付きの「立ち話数」が「声かけ母数」より多くなっています。数字を確かめてください。';return;}
+   s.outAt=s.outAt||now(); s.cnt=true; rpcQ('app_day_close',{p_actor:e.id,p_counts:v}); S.de=null; S.screen='home'; S.hist=[];},
+ decancel(){S.de=null; S.screen='home'; S.hist=[];},
  helpsave(){const h=S.help, co=h.co===OTHER?(h.coOther||'').trim().slice(0,60):h.co;
    if(!co){h.err='会社名を入力してください。';return;} if(!h.name.trim()){h.err='氏名を入力してください。';return;}
    const id=uuid(), name=h.name.trim().slice(0,40);
@@ -778,7 +803,8 @@ document.addEventListener('click',e=>{const el=e.target.closest('[data-a]'); if(
   const before=S.screen+S.role; if(SNAP.includes(a)) snap(); f(el.dataset);
   if(VSYNC.includes(a)){const v=V(); if(v) pushVisit(v);}
   render(); if(S.screen+S.role!==before) window.scrollTo(0,0);});
-function field(e){const d=e.target.dataset; if(d&&d.f){(d.g==='rf'?S.rf:S.help)[d.f]=e.target.value; if(d.f==='co'&&e.type==='change'){S.help.err=''; render(); const x=document.getElementById('help-co-other'); if(x) x.focus();}}}
+function field(e){const d=e.target.dataset; if(d&&d.f&&d.g==='de'){if(!S.de) return; const x=e.target.value.replace(/\D/g,'').slice(0,4); if(x!==e.target.value) e.target.value=x; S.de.v[d.f]=x; return;}
+  if(d&&d.f){(d.g==='rf'?S.rf:S.help)[d.f]=e.target.value; if(d.f==='co'&&e.type==='change'){S.help.err=''; render(); const x=document.getElementById('help-co-other'); if(x) x.focus();}}}
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&MD&&!MD.busy){MD=null; MV++; render();}});
 document.addEventListener('input',field); document.addEventListener('change',field);
 setInterval(()=>{if(!DEV) return; const a=document.activeElement; if(a&&(a.tagName==='INPUT'||a.tagName==='SELECT')) return; if(RSCREEN.includes(S.screen)&&S.screen==='resvnew'&&S.role==='staff') return; render();},20000);
@@ -806,7 +832,7 @@ function pushVisit(v,closed){const p=JSON.parse(JSON.stringify(v)); if(closed) p
 async function pump(){
   if(busy||!Q.length||!DEV) return; busy=true; net();
   while(Q.length){const q=Q[0];
-    try{const f=await call(q.fn,{p_device:DEV.device,p_secret:DEV.secret,...q.args}); Q.shift(); store.set('tk_q',Q); lastErr=false; if(!Q.length) applyFloor(f);}
+    try{const f=await call(q.fn,{p_device:DEV.device,p_secret:DEV.secret,...q.args}); Q.shift(); store.set('tk_q',Q); lastErr=false; if(f&&f.error){console.error(q.fn,f.error); setTimeout(poll,200);} else if(!Q.length) applyFloor(f);}
     catch(e){
       if(e.status>=400&&e.status<500){console.error(q.fn,e.body); Q.shift(); store.set('tk_q',Q); if(String(e.body).includes('device_not_registered')){busy=false; return reenroll();}}
       else{lastErr=true; net(); await sleep(4000);}
@@ -817,7 +843,7 @@ async function pump(){
 function applyFloor(f){
   skew=f.now-Date.now();
   S.devRole=f.role; S.companies=f.companies||[]; S.staff=f.staff; S.tables=f.tables; S.closed=f.closed; S.resv=f.resv; S.feed=f.feed; S.surveys=f.surveys; S.surveyAvg=f.surveyAvg; S.shop=f.shop; S.ready=true;
-  if(S.role==='staff'&&!['home','resv','resvnew','help'].includes(S.screen)){const t=T(); if(!t||(!t.v&&!['recv','type'].includes(S.screen))){S.screen='home'; S.hist=[];}}
+  if(S.role==='staff'&&!['home','resv','resvnew','help','dayend'].includes(S.screen)){const t=T(); if(!t||(!t.v&&!['recv','type'].includes(S.screen))){S.screen='home'; S.hist=[];}}
   const a=document.activeElement; if(a&&(a.tagName==='INPUT'||a.tagName==='SELECT')) return;
   render();
 }
