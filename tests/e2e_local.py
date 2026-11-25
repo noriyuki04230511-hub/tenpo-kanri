@@ -101,9 +101,15 @@ async def run(b,tag,w,h):
     sv=await pg.evaluate("(async()=>{const id=seg(V()).sid; const r=await call('app_clock_out',{p_device:DEV.device,p_secret:DEV.secret,p_actor:id}); A.clockout({id}); render(); return (r.error||'accepted')+' | '+document.getElementById('dlg-t').textContent+' | '+document.getElementById('dlg-err').textContent})()")
     print(tag,'clock-out while serving:',sv); await pg.click('#dlg-no'); await gone(pg)
     await pg.click('#serve-won'); await pg.locator('[data-a="pick"]').nth(1).click()
-    await pg.click('#setup-start'); await saved(pg); await pg.wait_for_timeout(5600); await shot('after')
+    PR="select coalesce(string_agg(p.kind||':'||(p.started_at is not null)||':'||coalesce('s'||p.staff_id,'h'||p.helper_id,'none'),' ' order by p.kind),'no rows') from visit_procedures p join visits v on v.id=p.visit_id where v.ended_at is null"
+    print(tag,'after pick -> screen',await pg.text_content('#tb-t'),'|',await pg.text_content('.sec h2'),'| setup-start button',await pg.locator('#setup-start').count(),'| staff choices',await pg.locator('[data-a="procwho"]').count(),'| skip link',await pg.locator('#pw-back').count()); await saved(pg); await shot('procwho'); await ov(pg,tag,'procwho')
+    print(tag,'before choosing: db procedures',admin(PR)); tid=await pg.evaluate("S.tid"); await pg.click('#go-home'); await pg.click(f'[data-a="table"][data-id="{tid}"]'); print(tag,'reopen table -> screen',await pg.text_content('#tb-t'))
+    who=await pg.locator('[data-a="procwho"]').nth(1).get_attribute('data-id'); await pg.locator('[data-a="procwho"]').nth(1).click(); await saved(pg); print(tag,'chosen',who,'-> screen',await pg.text_content('#tb-t'),'| shown',await pg.text_content('#setup-by'),'| db',admin(PR))
+    await pg.click('#move-start'); print(tag,'move start -> screen',await pg.text_content('#tb-t'),'|',await pg.text_content('.sec h2'),'| skip link',await pg.locator('#pw-back').count()); await pg.click('#pw-back'); print(tag,'not yet -> screen',await pg.text_content('#tb-t'),'| db',admin(PR))
+    await pg.click('#move-start'); await pg.locator('[data-a="procwho"]').first.click(); await saved(pg); print(tag,'move chosen: shown',await pg.text_content('#move-by'),'| db',admin(PR))
+    await pg.wait_for_timeout(5600); await shot('after')
     print(tag,'carrier hidden',await pg.query_selector('#p-carrier') is None, 'title',await pg.text_content('#tb-t'))
-    await pg.click('#setup-end'); await pg.click('#move-none'); await pg.click('#a-5'); await pg.click('#b-4'); await pg.click('#c-0'); await pg.click('#sv-send'); await pg.click('#thanks-back'); await saved(pg)
+    await pg.click('#setup-end'); await pg.click('#move-end'); await pg.click('#a-5'); await pg.click('#b-4'); await pg.click('#c-0'); await pg.click('#sv-send'); await pg.click('#thanks-back'); await saved(pg)
     print(tag,'end ->',await pg.text_content('#tb-t'),'tables',await tiles(pg).count())
     # guide skip
     await tiles(pg).nth(2).click(); await pg.locator('[data-a="recv"]').nth(1).click(); await pg.click('#type-in_guide'); print(tag,'guide ->',await pg.text_content('#tb-t')); await pg.click('#serve-end'); await saved(pg)

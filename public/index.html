@@ -379,7 +379,7 @@ function alerts(){
   S.tables.forEach(t=>{const v=t.v;if(!v)return;
     [['setup','顧客登録'],['move','データ移行']].forEach(([k,n])=>{const x=v[k];
       if(x.s&&!x.e){const m=mins(x.s); if(m>=30){const nth=Math.floor((m-30)/15)+1;
-        a.push({lv:m>=45?'crit':'warn',tid:t.id,t:`${t.name}　${n}に${m}分経過`,d:`${nth}回目のお知らせ（30分から15分ごと）。完了ボタンが押されると消えます。担当：${staffName(seg(v).sid)}さん`});}}});
+        a.push({lv:m>=45?'crit':'warn',tid:t.id,t:`${t.name}　${n}に${m}分経過`,d:`${nth}回目のお知らせ（30分から15分ごと）。完了ボタンが押されると消えます。担当：${staffName(x.by||seg(v).sid)}さん`});}}});
   });
   return a;
 }
@@ -424,7 +424,7 @@ function stepIndex(){
   if(sc==='recv') return 0; if(sc==='type') return 1;
   if(['mode','cust','custdone','staffhear'].includes(sc)) return 2;
   if(sc==='pick') return S.afterPick?4:3; if(sc==='serve') return 3;
-  if(sc==='after') return 4; return 5;
+  if(sc==='after'||sc==='procwho') return 4; return 5;
 }
 const crumbs=()=>{const i=stepIndex();return `<div class="crumbs" aria-label="進み具合">${STEPS.map((s,n)=>(n===i?`<b>${s}</b>`:`<span>${s}</span>`)+(n<STEPS.length-1?'<span aria-hidden="true">›</span>':'')).join('')}</div>`};
 function ctxBand(){
@@ -594,7 +594,7 @@ after(){
       :`<p class="sub" style="font-size:16px">まだ始めていません</p>`;
     const btn=x.e||x.none?'':x.s?`<button class="btn blue" id="${k}-end" data-a="tend" data-v="${k}">${n}を完了</button>`
       :`<button class="btn line" id="${k}-start" data-a="tstart" data-v="${k}">${n}を始める</button>${k==='move'?`<button class="link" id="move-none" data-a="movenone">データ移行なし</button>`:''}`;
-    return `<section class="box"><h2>${n}</h2>${body}${btn?`<div class="row">${btn}</div>`:''}
+    return `<section class="box"><h2>${n}</h2>${x.s&&x.by?`<p class="sub" id="${k}-by" style="font-size:15px">担当：${esc(staffName(x.by))}さん</p>`:''}${body}${btn?`<div class="row">${btn}</div>`:''}
       <p class="sub">30分を過ぎると店長の画面に知らせ、その後は15分ごとに知らせます。</p></section>`};
   const body=`<div class="grid g2" style="gap:24px">${timer('setup','顧客登録')}${timer('move','データ移行')}</div>
   <section class="box"><h2>手続き中に提案した商材・獲得した商材</h2>
@@ -603,6 +603,14 @@ after(){
   <p class="sub">顧客登録とデータ移行の両方が終わると、自動でお客様アンケートに切り替わります。提案・獲得のチェックを先に済ませてください。アンケートが終わるまで、卓は空きになりません。</p>`;
   const act=`<div class="action"><div class="sum"><span>提案<b>${sg.p.length}</b></span><span>獲得<b>${sg.w.length}</b>${wq(sg)>sg.w.length?`<small>（${wq(sg)}件）</small>`:''}</span></div><button class="btn onblue" id="after-change" data-a="change">担当変更</button></div>`;
   return {t:'成約後の手続き',band:ctxBand(),body,act};
+},
+procwho(){
+  const v=V(), k=S.procK==='move'?'move':'setup', n=k==='move'?'データ移行':'顧客登録', cur=seg(v).sid;
+  let list=onDuty(); list=[...list.filter(s=>s.id===cur),...list.filter(s=>s.id!==cur)];
+  return {t:n+'の担当',band:ctxBand(),body:`<section class="sec"><h2>${n}を開始します。担当を選んでください</h2>
+    <p class="sub" id="pw-note">担当を選ぶと、${n}の時間の計測が始まります。選ぶまで、時間は進まず、先の画面にも進めません。</p>
+    <div class="grid g2">${list.map(s=>`<button class="pickc" id="pw-${s.id}" data-a="procwho" data-id="${s.id}"><span class="ava">${esc(s.name[0])}</span><span><b>${esc(s.name)}さん</b><span class="d">${s.id===cur?'成約後の担当':esc(s.kind)}</span></span></button>`).join('')}</div>
+    ${k==='move'?`<div class="row"><button class="link" id="pw-back" data-a="procback">まだ始めない（手続きの画面に戻る）</button></div>`:''}</section>`};
 },
 survey(){
   const d=S.draft;
@@ -706,7 +714,7 @@ function autoSurvey(){const v=V(); if(v.setup.e&&(v.move.e||v.move.none)&&!v.sur
 function saveHearing(){const v=V(); v.h={...S.draft,extra:S.draft.extra||[]}; v.phase='ready';
   S.feed.unshift({at:now(),text:`${T().name}　${v.h.age}　ご用件：${v.h.purpose||'未記入'}`});}
 const toggle=(c,val)=>{c=c||[]; return c.includes(val)?c.filter(x=>x!==val):[...c,val];};
-const SNAP=['table','recv','type','hear','shdone','pick','change','won','go','rnew'];
+const SNAP=['table','recv','type','hear','shdone','pick','change','won','go','rnew','procwho'];
 const A={
  role(d){S.role=d.v;},
  tab(d){ if(d.v==='mgr'){S.role='mgr';return;} S.role='staff';
@@ -754,7 +762,8 @@ const A={
    if(!v){S.recvId=null;S.screen='recv';return;}
    if(v.phase==='hearing'){S.draft={};S.step=0;S.screen=typeOf(v.type).inbound?'mode':'staffhear';return;}
    if(v.phase==='after'&&seg(v).stage!=='after'){S.changing=true;S.afterPick=true;S.screen='pick';return;}
-   S.screen={ready:'pick',serving:'serve',after:'after'}[v.phase]||'type';},
+   S.screen={ready:'pick',serving:'serve',after:'after'}[v.phase]||'type';
+   if(v.phase==='after'&&!v.setup.s){S.procK='setup'; S.screen='procwho';}},
  recv(d){S.recvId=d.id; S.screen='type';},
  type(d){const ty=typeOf(d.v);
    T().v={id:uuid(),tid:S.tid,recv:S.recvId,type:d.v,at:now(),phase:'hearing',by:null,h:null,segs:[],setup:{},move:{}};
@@ -772,7 +781,11 @@ const A={
  pick(d){const v=V(), after=v.phase==='after';
    v.segs.push({id:uuid(),sid:d.id,p:[],w:[],a:[],stage:after?'after':'serve'});
    if(!after) v.phase='serving';
-   S.changing=false; S.afterPick=false; S.screen=after?'after':'serve';},
+   const first=S.afterPick; S.changing=false; S.afterPick=false; S.screen=after?'after':'serve';
+   if(after&&first&&!v.setup.s){S.procK='setup'; S.screen='procwho';}},
+ procwho(d){const v=V(), k=S.procK==='move'?'move':'setup'; if(!v||v[k].s||v[k].none) {S.screen='after'; return;}
+   v[k]={s:now(),by:d.id}; S.screen='after';},
+ procback(){S.screen='after';},
  prop(d){const s=seg(V()); if(s.p.includes(d.v)){s.p=s.p.filter(x=>x!==d.v); s.w=s.w.filter(x=>x!==d.v); if(s.q) delete s.q[d.v];} else s.p.push(d.v);},
  win(d){const s=seg(V()); if(s.w.includes(d.v)){s.w=s.w.filter(x=>x!==d.v); if(s.q) delete s.q[d.v];} else {s.w.push(d.v); if(!s.p.includes(d.v)) s.p.push(d.v);}},
  qty(d){const s=seg(V()); if(!s.w.includes(d.v)) return; const n=Math.max(1,Math.min(20,qn(s,d.v)+(+d.d))); s.q=s.q||{}; if(n>1) s.q[d.v]=n; else delete s.q[d.v];},
@@ -780,7 +793,7 @@ const A={
  change(){S.changing=true; S.afterPick=false; S.screen='pick';},
  won(){const v=V(); if(!anyWon(v)) return; v.phase='after'; v.result='won'; S.changing=true; S.afterPick=true; S.screen='pick';},
  end(){if(anyWon(V())) return; closeVisit('lost');},
- tstart(d){V()[d.v].s=now();},
+ tstart(d){const v=V(); if(v[d.v].s) return; S.procK=d.v; S.screen='procwho';},
  tend(d){V()[d.v].e=now(); autoSurvey();},
  movenone(){V().move.none=true; autoSurvey();},
  sv(d){S.draft[d.k]=d.n?+d.n:d.v;},
@@ -812,7 +825,7 @@ setInterval(()=>{if(!DEV) return; const a=document.activeElement; if(a&&(a.tagNa
 /* ---------- データベースとのやり取り ---------- */
 /* 下の鍵は「公開用の鍵」で、画面に置く前提のもの。これだけでは表を読めず、登録済みの端末として入口の関数を呼べるだけ */
 const CFG={url:'https://egpibhkwemssnanalfoh.supabase.co/rest/v1',key:'sb_publishable_1WSi5i6QZa7AJz-KnNG_1A_-7WVhZfd'};
-const VSYNC=['type','hear','qnext','shdone','pick','prop','win','qty','act','won','tstart','tend','movenone'];
+const VSYNC=['type','hear','qnext','shdone','pick','prop','win','qty','act','won','procwho','tend','movenone'];
 let DEV=null, Q=[], busy=false, lastErr=false;
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const uuid=()=>(crypto.randomUUID?crypto.randomUUID():'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=crypto.getRandomValues(new Uint8Array(1))[0]&15;return (c==='x'?r:(r&3|8)).toString(16)}));

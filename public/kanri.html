@@ -191,14 +191,14 @@ function actSection(){
   const row=r=>`<tr><td style="white-space:normal;min-width:104px">${esc(r.name)}${r.sub?sm(esc(r.sub)):''}${sm(`名刺 ${r.cd}枚`)}<small style="display:block;font-size:12px;color:${r.due>r.ent?'var(--red);font-weight:600':'var(--ink2)'}">入力 ${r.ent}/${r.due}日</small></td>${cell(r.oc,r.os,r.ov,r.ow,'立ち止まり率')}${cell(r.fc,r.ft,r.fv,r.fw,'立ち話率')}</tr>`;
   const cols=['','アウトバウンド<br>声かけ → 立ち止まり','什器付き<br>声かけ → 立ち話'];
   const multi=(A.shops||[]).length>1;
-  const st={pending:'送信待ち（送信先が未設定）',sent:'送信済み',failed:'送信できず',skipped:'見本のため送らない'};
+  const st={pending:'送信待ち',sending:'送信中',sent:'送信済み',failed:'送信できず',skipped:'送らない（見本・あて先なし・期限切れ）'}, to={self:'本人あて',boss:'上司あて',owner:'代表あて'};
   return `<section class="sec" id="act"><h2>声かけの活動（退勤時の入力）</h2><div class="box">
     <div class="pills"><span class="pill">アウトバウンド 声かけ<b>${a.oc}</b>人 → 立ち止まり<b>${a.os}</b>人（${rate(a.os,a.oc)}）→ 受付<b>${a.ov}</b>組</span><span class="pill">什器付き 声かけ<b>${a.fc}</b>人 → 立ち話<b>${a.ft}</b>人（${rate(a.ft,a.fc)}）→ 受付<b>${a.fv}</b>組</span><span class="pill">名刺お渡し<b>${a.cd}</b>枚</span><span class="pill">入力<b>${a.ent}</b>/${a.due}人日${a.due?`（${pct(a.ent,a.due)}%）`:''}</span></div>
     ${multi?`<h3 style="font-size:15px;margin:14px 0 6px">店舗別</h3>${tbl(['店舗',...cols.slice(1)],A.shops.map(row),[1,2])}`:''}
     <h3 style="font-size:15px;margin:14px 0 6px">スタッフ別</h3>${tbl(['スタッフ',...cols.slice(1)],(A.staff||[]).map(row),[1,2])}
     ${A.missN?`<h3 style="font-size:15px;margin:14px 0 6px" id="act-miss">未入力 ${A.missN}件</h3>${tbl(['日付','店舗','スタッフ'],A.miss.map(m=>`<tr><td class="num">${md(Date.parse(m.day+'T00:00:00+09:00'))}</td><td>${esc(m.shop)}</td><td>${esc(m.name)}</td></tr>`),[])}`:''}
     <p class="sub">退勤のときに、スタッフが自分で入力した数字です。「受付」は、その人が受付担当になったアウトバウンド・什器付きの組数、「成約」はそのうち成約した組数で、卓での記録から自動で数えています。「入力」は、入力した日数／退勤した（または日付が変わった）出勤日数で、未入力があると赤で表示します。2026-11-25 より前の出勤は対象にしていません。</p>
-    ${(A.outbox||[]).length?`<h3 style="font-size:15px;margin:18px 0 6px" id="act-slack">Slackに送る文（新しい順・${A.outbox.length}件）</h3>${A.outbox.map(o=>`<div style="border:1px solid var(--line);border-radius:6px;padding:10px 12px;margin:0 0 8px"><small style="font-size:12px;color:var(--ink2)">${md(o.at)} ${hm(o.at)}　${esc(st[o.status]||o.status)}</small><pre style="margin:6px 0 0;white-space:pre-wrap;font:inherit;font-size:14px;line-height:1.6">${esc(o.body)}</pre></div>`).join('')}`:''}
+    ${(A.outbox||[]).length?`<h3 style="font-size:15px;margin:18px 0 6px" id="act-slack">Slackに送る文（新しい順・${A.outbox.length}件）</h3>${A.outbox.map(o=>`<div style="border:1px solid var(--line);border-radius:6px;padding:10px 12px;margin:0 0 8px"><small style="font-size:12px;color:var(--ink2)">${md(o.at)} ${hm(o.at)}　${o.to?esc(to[o.to]||o.to)+'　':''}${esc(st[o.status]||o.status)}</small><pre style="margin:6px 0 0;white-space:pre-wrap;font:inherit;font-size:14px;line-height:1.6">${esc(o.body)}</pre></div>`).join('')}`:''}
   </div></section>`;
 }
 
