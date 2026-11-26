@@ -202,6 +202,21 @@ function actSection(){
   </div></section>`;
 }
 
+function goalSection(){
+  const G=R.goal; if(!G||!G.all) return '';
+  const sm=x=>`<small style="display:block;font-size:12px;color:var(--ink2)">${x}</small>`;
+  const rate=(a,g)=>g>0?Math.round(a/g*100)+'%':'—';
+  const cell=(g,a)=>`<td class="n" style="white-space:normal">目標 <b>${g}</b> ／ 実績 <b>${a}</b>${sm('達成率 '+rate(a,g))}</td>`;
+  const row=r=>`<tr><td style="white-space:normal;min-width:104px">${esc(r.name)}${r.sub?sm(esc(r.sub)):''}<small style="display:block;font-size:12px;color:${r.days>r.ent?'var(--red);font-weight:600':'var(--ink2)'}">目標の入力 ${r.ent}/${r.days}日</small></td>${cell(r.go,r.os)}${cell(r.gm,r.mw)}</tr>`;
+  const a=G.all, multi=(G.shops||[]).length>1, cols=['アウト着座（件）','モバイル契約（件）'];
+  return `<section class="sec" id="goal"><h2>目標と実績（出勤時の目標）</h2><div class="box">
+    <div class="pills"><span class="pill">アウト着座 目標<b>${a.go}</b>件 → 実績<b>${a.os}</b>件（${rate(a.os,a.go)}）</span><span class="pill">モバイル契約 目標<b>${a.gm}</b>件 → 実績<b>${a.mw}</b>件（${rate(a.mw,a.gm)}）</span><span class="pill">目標の入力<b>${a.ent}</b>/${a.days}人日</span></div>
+    ${multi?`<h3 style="font-size:15px;margin:14px 0 6px">店舗別</h3>${tbl(['店舗',...cols],G.shops.map(row),[1,2])}`:''}
+    <h3 style="font-size:15px;margin:14px 0 6px">スタッフ別</h3>${tbl(['スタッフ',...cols],(G.staff||[]).map(row),[1,2])}
+    <p class="sub">目標は、出勤のときにスタッフが自分で入力した数字です。実績は卓での記録から自動で数えています。アウト着座＝その人が受付したアウトバウンドの組数、モバイル契約＝その人の担当分で獲得した携帯の件数（1組で2件なら2件）。店舗別の実績は、店舗全体の数です。目標を入れていない日の実績も、実績には入ります。</p>
+  </div></section>`;
+}
+
 function renderLogin(){
   $('top-r').innerHTML='<a class="link" href="./">卓の画面へ</a>'; $('note').innerHTML=''; $('band').innerHTML='';
   const setup=LG.mode==='setup';
@@ -276,10 +291,14 @@ function render(){
     <p class="sub">成約率と満足度を必ず並べて見ます。成約率だけが高く満足度が低い店舗は、売り方を確認する対象です。</p></div></section>`:''}
   ${prodSection()}
   ${timeSection()}
+  ${goalSection()}
   ${actSection()}
   ${chart?`<section class="sec"><h2>日別の推移</h2><div class="box">${chart}</div></section>`:''}
   <div class="grid2">
     <section class="sec"><h2>来店区分別</h2><div class="box"><div class="legend"><span><i style="background:var(--blue)"></i>来店</span><span><i style="background:var(--ok)"></i>成約</span></div>${bars(R.byType.map(x=>({label:x.label,a:x.visits,b:x.won})),'a','b')}</div></section>
+    <section class="sec" id="src"><h2>来店のきっかけ（お客様の回答）</h2><div class="box"><div class="legend"><span><i style="background:var(--blue)"></i>来店</span><span><i style="background:var(--ok)"></i>成約</span></div>${(R.bySource||[]).length?bars(R.bySource.map(x=>({label:x.src,a:x.visits,b:x.won})),'a','b'):'<p class="sub">この期間の回答はありません。</p>'}
+      ${(R.byOwner||[]).length?`<div class="pills" id="own" style="margin-top:12px">${R.byOwner.map(x=>`<span class="pill">ご契約者様 ${esc(x.own)}<b>${x.visits}</b>組（成約${x.won}組）</span>`).join('')}</div>`:''}
+      <p class="sub">お客様がiPadで記入した来店だけが対象です。スタッフが記入した来店には、この2つの質問はありません。</p></div></section>
     <section class="sec"><h2>年代別</h2><div class="box"><div class="legend"><span><i style="background:var(--blue)"></i>来店</span><span><i style="background:var(--ok)"></i>成約</span></div>${R.byAge.length?bars(R.byAge.map(x=>({label:x.age,a:x.visits,b:x.won})),'a','b'):'<p class="sub">この期間のヒアリングはありません。</p>'}</div></section>
     <section class="sec"><h2>スタッフ別</h2><div class="box">${tbl(['スタッフ','店舗','接客','提案','獲得'],R.byStaff.map(s=>`<tr><td>${esc(s.name)}</td><td>${esc(s.shop)}</td><td class="n">${s.visits}</td><td class="n">${s.proposed}</td><td class="n">${s.won}</td></tr>`),[2,3,4])}
       <p class="sub">順位づけのための表ではありません。提案が多く満足度が低い場合は、店舗別の満足度と合わせて確認します。</p></div></section>

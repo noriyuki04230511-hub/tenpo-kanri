@@ -1,7 +1,7 @@
 import asyncio, json, re, subprocess, os
 from playwright.async_api import async_playwright
 P='file:///home/claude/tenpo-kanri/public/index.html'
-T={'p_device':'uuid','p_secret':'text','p_visit':'jsonb','p_resv':'jsonb','p_actor':'text','p_id':'uuid','p_kind':'text','p_company':'text','p_name':'text','p_op':'text','p_answered':'boolean','p_service':'integer','p_clarity':'integer','p_return':'text','p_label':'text','p_password':'text','p_new':'text','p_old':'text','p_from':'date','p_to':'date','p_shop':'integer','p_counts':'jsonb'}
+T={'p_device':'uuid','p_secret':'text','p_visit':'jsonb','p_resv':'jsonb','p_actor':'text','p_id':'uuid','p_kind':'text','p_company':'text','p_name':'text','p_op':'text','p_answered':'boolean','p_service':'integer','p_clarity':'integer','p_return':'text','p_label':'text','p_password':'text','p_new':'text','p_old':'text','p_from':'date','p_to':'date','p_shop':'integer','p_counts':'jsonb','p_goals':'jsonb'}
 ENV=dict(os.environ,PGPASSWORD='x')
 OFF={'v':False}; CALLS={'n':0,'err':[]}
 def psql(sql,j=None,role=True):
@@ -43,23 +43,28 @@ async def run(b,tag,w,h):
         r=await pg.evaluate("({sw:document.documentElement.scrollWidth,cw:document.documentElement.clientWidth})")
         if r['sw']>r['cw']+1: print(tag,n,'OVERFLOW',r)
         await pg.screenshot(path=f'/home/claude/a_{tag}_{n}.png')
-    print(tag,'tables',await tiles(pg).count(),'not clocked',await pg.locator('[data-a="clockin"]').count())
-    if await pg.locator('[data-a="clockin"]').count(): await pg.locator('[data-a="clockin"]').first.click()
+    GL="""select coalesce(string_agg(coalesce('s'||staff_id,'h')||':'||coalesce(goal_out::text,'-')||'/'||coalesce(goal_mobile::text,'-'),' ' order by clocked_in_at),'none') from attendance where shop_id=9000 and work_date=(now() at time zone 'Asia/Tokyo')::date"""
+    print(tag,'tables',await tiles(pg).count(),'not clocked',await pg.locator('[id^="in-"]').count(),'| goal-missing marks',await pg.locator('[id^="gls-"]').count())
+    a0=admin(ATT); await pg.locator('[id^="in-"]').first.click(); print(tag,'clock-in -> screen',await pg.text_content('#tb-t'),'|',await pg.text_content('.box h2'),'| inputs',await pg.locator('.cnt-g input').count(),'| attendance before save',a0,'->',admin(ATT))
+    await pg.click('#gs-save'); print(tag,'goals empty ->',await pg.text_content('#gs-err')); await pg.fill('#gs-go','1x0'); print(tag,'non-digit stripped ->',await pg.input_value('#gs-go')); await pg.fill('#gs-gm','5'); await shot('daystart'); await ov(pg,tag,'daystart')
+    await pg.click('#gs-cancel'); print(tag,'cancel -> screen',await pg.text_content('#tb-t'),'| attendance',admin(ATT))
+    await pg.locator('[id^="in-"]').first.click(); await pg.fill('#gs-go','10'); await pg.fill('#gs-gm','5'); await pg.click('#gs-save'); await saved(pg); print(tag,'clocked in with goals: attendance',admin(ATT),'| goals',admin(GL))
+    lid=await pg.locator('[id^="gl-"]').first.get_attribute('data-id'); await pg.locator('[id^="gl-"]').first.click(); print(tag,'late goals -> title',await pg.text_content('#tb-t'),'| save label',(await pg.text_content('#gs-save')).strip()); await pg.fill('#gs-go','3'); await pg.fill('#gs-gm','1'); await pg.click('#gs-save'); await saved(pg); print(tag,'late goals saved: mark',await pg.locator(f'#gls-{lid}').count(),'| goals',admin(GL))
     await shot('home'); await saved(pg)
     # 押し間違いの取り消し：出勤
     a0=admin(ATT); await pg.locator('.person .un').last.click(); await shot('modal')
     print(tag,'popup:',await pg.text_content('#dlg-t'),'|',await pg.text_content('#dlg-gone'),'| focus on',await pg.evaluate("document.activeElement.id"))
     await pg.click('#dlg-no'); print(tag,'cancel keeps data: modal',await pg.locator('#modal .dlg').count(),'attendance',a0,'->',admin(ATT))
     await pg.locator('.person .un').last.click(); await pg.click('#dlg-yes'); await gone(pg)
-    print(tag,'clock-in undone: attendance',a0,'->',admin(ATT),'| not clocked',await pg.locator('[data-a="clockin"]').count(),'| history',admin("select count(*) from events where action='attendance.undo' and before is not null"))
-    await pg.locator('[data-a="clockin"]').first.click(); await saved(pg)
+    print(tag,'clock-in undone: attendance',a0,'->',admin(ATT),'| not clocked',await pg.locator('[id^="in-"]').count(),'| history',admin("select count(*) from events where action='attendance.undo' and before is not null"))
+    await pg.locator('[id^="in-"]').first.click(); await pg.fill('#gs-go','10'); await pg.fill('#gs-gm','5'); await pg.click('#gs-save'); await saved(pg)
     # 退勤と、その取り消し
     OUT="select count(*) from attendance where shop_id=9000 and clocked_out_at is not null and work_date=(now() at time zone 'Asia/Tokyo')::date"
     CNT="select coalesce(out_call::text,'null')||'/'||coalesce(out_stop::text,'null')||'/'||coalesce(fix_call::text,'null')||'/'||coalesce(fix_talk::text,'null')||'/'||coalesce(cards::text,'null')||' counts_at '||(counts_at is not null) from attendance where shop_id=9000 and work_date=(now() at time zone 'Asia/Tokyo')::date order by clocked_out_at desc nulls last limit 1"
     await pg.locator('[data-a="clockout"]').last.click(); print(tag,'day-end form:',await pg.text_content('#tb-t'),'|',await pg.text_content('.box h2'),'| inputs',await pg.locator('.cnt-g input').count(),'| db out before save',admin(OUT))
     await pg.click('#de-save'); print(tag,'empty ->',await pg.text_content('#de-err'))
     await pg.fill('#de-oc','10'); await pg.fill('#de-os','12'); await pg.fill('#de-fc','20'); await pg.fill('#de-ft','5'); await pg.fill('#de-cd','3'); await pg.click('#de-save'); print(tag,'stop>call ->',(await pg.text_content('#de-err'))[:30],'| db out',admin(OUT))
-    await pg.fill('#de-os','4a'); print(tag,'non-digit stripped ->',await pg.input_value('#de-os')); await pg.fill('#de-os','4'); await shot('dayend'); await ov(pg,tag,'dayend')
+    await pg.fill('#de-os','4a'); print(tag,'non-digit stripped ->',await pg.input_value('#de-os')); await pg.fill('#de-os','4'); await pg.wait_for_selector('#pg-dl,#pg-ng',timeout=15000); print(tag,'progress box:',(await pg.text_content('#de-pg'))[:86]); await pg.locator('section.box').first.screenshot(path=f'/home/claude/a_{tag}_dayendbox.png'); await shot('dayend'); await ov(pg,tag,'dayend')
     await pg.click('#de-cancel'); print(tag,'cancel -> screen',await pg.text_content('#tb-t'),'| db out',admin(OUT))
     await pg.locator('[data-a="clockout"]').last.click(); await pg.fill('#de-oc','40'); await pg.fill('#de-os','8'); await pg.fill('#de-fc','25'); await pg.fill('#de-ft','6'); await pg.fill('#de-cd','5'); await pg.click('#de-save'); await saved(pg); await shot('out')
     print(tag,'saved: db counts',admin(CNT),'| card',(await pg.locator('.person.off').last.text_content()).strip()[:60],'| outbox',admin("select kind||'/'||status||'/'||replace(left(body,26),E'\\n',' ') from slack_outbox order by id desc limit 1"))
@@ -77,9 +82,9 @@ async def run(b,tag,w,h):
     # 応援スタッフ
     await pg.click('#add-help'); print(tag,'company options',await pg.locator('#help-co option').all_text_contents(),'| other input before',await pg.locator('#help-co-other').count())
     await pg.select_option('#help-co','その他（会社名を入力）'); await pg.fill('[data-f="name"]','試験'); await pg.click('#help-save'); print(tag,'other w/o name:',await pg.text_content('#help-err'),'| helpers',admin("select count(*) from helpers"))
-    await pg.fill('#help-co-other','試験商事'); await pg.click('#help-save'); await saved(pg); print(tag,'other saved:',admin("select company_other||'/'||coalesce(company_id::text,'-') from helpers order by created_at desc limit 1"),'| card',(await pg.locator('.person:not(.add)').last.text_content()).strip()[:40])
+    await pg.fill('#help-co-other','試験商事'); await pg.click('#help-save'); print(tag,'after helper add -> screen',await pg.text_content('#tb-t'),'|',(await pg.text_content('#gs-save')).strip()); await pg.fill('#gs-go','6'); await pg.fill('#gs-gm','0'); await pg.click('#gs-save'); await saved(pg); print(tag,'helper goals',admin("select goal_out||'/'||goal_mobile from attendance where helper_id is not null order by clocked_in_at desc limit 1")); print(tag,'other saved:',admin("select company_other||'/'||coalesce(company_id::text,'-') from helpers order by created_at desc limit 1"),'| card',(await pg.locator('.person:not(.add)').last.text_content()).strip()[:40])
     await pg.locator('[data-k="helper"]').last.click(); await pg.click('#dlg-yes'); await gone(pg)
-    await pg.click('#add-help'); await pg.fill('[data-f="name"]','試験'); await pg.click('#help-save'); await saved(pg); h0=admin("select count(*) from helpers"); p0=await pg.locator('.person:not(.add)').count()
+    await pg.click('#add-help'); await pg.fill('[data-f="name"]','試験'); await pg.click('#help-save'); await pg.click('#gs-cancel'); await saved(pg); h0=admin("select count(*) from helpers"); p0=await pg.locator('.person:not(.add)').count()
     await pg.locator('[data-k="helper"]').last.click(); t=await pg.text_content('#dlg-t'); await pg.click('#dlg-yes'); await gone(pg)
     print(tag,'helper undone:',t,'| helpers',h0,'->',admin("select count(*) from helpers"),'| cards',p0,'->',await pg.locator('.person:not(.add)').count())
     # full flow
@@ -124,6 +129,16 @@ async def run(b,tag,w,h):
     print(tag,'ended at staffhear (1 of 5) -> db',admin(LAST))
     await tiles(pg).nth(2).click(); await pg.locator('[data-a="recv"]').first.click(); await pg.click('#type-out'); await hear(pg,'60〜64歳'); await pg.click('#sh-done'); await pg.click('#hear-end'); await pg.click('#dlg-yes'); await gone(pg); await saved(pg)
     print(tag,'ended at pick (hearing done) -> db',admin(LAST),'| tables',await tiles(pg).count())
+    # お客様記入：7問（きっかけ → 5問 → ご契約者様）
+    await tiles(pg).nth(2).click(); await pg.locator('[data-a="recv"]').first.click(); await pg.click('#type-in_guide_h'); await pg.click('#mode-cust')
+    print(tag,'cust Q1:',await pg.text_content('.paper h2'),'| options',await pg.locator('.opt').count(),'|',(await pg.text_content('.lead span')).strip()); await shot('q1'); await ov(pg,tag,'q1')
+    await pg.click('#opt-1'); await pg.click('#q-next'); await pg.click('#opt-4'); await pg.click('#q-next'); await pg.click('#opt-0'); await pg.click('#q-next'); await pg.click('#opt-0'); await pg.click('#q-next'); await pg.click('#opt-1'); await pg.click('#q-next')
+    print(tag,'cust Q6:',await pg.text_content('.paper h2'),'| options',await pg.locator('.opt').all_text_contents()); await shot('q6'); await ov(pg,tag,'q6'); await pg.click('#opt-2'); await pg.click('#q-next')
+    print(tag,'cust Q7 note:',(await pg.text_content('#q-note'))[:30],'|',await pg.text_content('.paper h2'),'| options',await pg.locator('.opt').all_text_contents(),'| next',(await pg.text_content('#q-next')).strip()); await shot('q7'); await ov(pg,tag,'q7')
+    await pg.click('#opt-1'); await pg.click('#q-next'); await pg.click('#cust-done'); await pg.locator('[data-a="pick"]').first.click(); await saved(pg)
+    print(tag,'serve: owner warning',await pg.locator('#own-warn').count(),'| memo',(await pg.text_content('.memo'))[-58:],'| cable suggestion','ケーブルテレビ' in (await pg.text_content('.box .grid')))
+    print(tag,'db hearing',admin("select source||' / '||owner_present||' / '||home_net from visit_hearings order by answered_at desc limit 1")); await shot('ownwarn'); await ov(pg,tag,'ownwarn')
+    await pg.click('#serve-end'); await saved(pg)
     # back = void
     n0=admin("select count(*) from visits")
     await tiles(pg).nth(2).click(); await pg.locator('[data-a="recv"]').first.click(); await pg.click('#type-in_meo'); await saved(pg)
@@ -138,6 +153,12 @@ async def run(b,tag,w,h):
     r0=admin("select count(*) from reservations where shop_id=9000"); await pg.locator('[data-k="reservation"]').last.click(); tt=await pg.text_content('#dlg-t'); sub=await pg.text_content('#dlg-sub'); await pg.click('#dlg-yes'); await gone(pg)
     print(tag,'resv deleted:',tt,'| rows',await pg.locator('.rv').count(),'| db',r0,'->',admin("select count(*) from reservations where shop_id=9000"),'| cancel note','キャンセル' in sub,'| counted as cancel',admin("select count(*) from reservations where shop_id=9000 and status='cancel'"))
     await pg.click('#resv-new'); await pg.fill('#rf-date',d[0]); await pg.fill('#rf-time',d[1]); await pg.click('#rf-save'); await saved(pg)
+    n1=await pg.locator('.rv').count(); print(tag,'first at this time: no dialog',await pg.locator('#modal .dlg').count(),'rows',n1)
+    await pg.click('#resv-new'); await pg.fill('#rf-date',d[0]); await pg.fill('#rf-time',d[1]); await pg.click('#rf-save'); await shot('dupresv')
+    print(tag,'dup dialog:',await pg.text_content('#dlg-t'),'|',await pg.text_content('#dlg-sub'),'|',(await pg.text_content('#dlg-no')).strip(),'/',(await pg.text_content('#dlg-yes')).strip()); await pg.click('#dlg-no'); await gone(pg)
+    print(tag,'dup cancel -> screen',await pg.text_content('#tb-t'),'| db',admin("select count(*) from reservations where shop_id=9000 and status='booked'"))
+    await pg.click('#rf-save'); await pg.click('#dlg-yes'); await gone(pg); await saved(pg); print(tag,'dup accepted: rows',n1,'->',await pg.locator('.rv').count(),'| db same time',admin("select max(c) from (select count(*) c from reservations where shop_id=9000 and status='booked' group by reserved_at) x"))
+    await pg.locator('[data-k="reservation"]').last.click(); await pg.click('#dlg-yes'); await gone(pg)
     await pg.locator('[data-a="rcancel"]').last.click(); await saved(pg)
     # reservation due -> auto table -> no-show
     admin("update reservations set reserved_at=now()+interval '10 minutes' where id=(select id from reservations where status='booked' order by reserved_at limit 1)")
@@ -175,7 +196,7 @@ async def run_login(b,tag,w,h,first):
         await pg.fill('#lg-pw',PW); await pg.click('#lg-go')
     await pg.wait_for_selector('#add-table',timeout=15000)
     print(tag,'logged in: shop',await pg.text_content('.b-box b'),'| bar',await pg.text_content('#who'),'| staff',await pg.locator('.person:not(.add)').count(),'| mgr tab',await pg.text_content('#mgr-label'),'| kanri link',await pg.locator('#to-kanri').count(),'| reset btn',await pg.locator('#demo-reset').count())
-    if await pg.locator('[data-a="clockin"]').count(): await pg.locator('[data-a="clockin"]').first.click()
+    if await pg.locator('[id^="in-"]').count(): await pg.locator('[id^="in-"]').first.click(); await pg.fill('#gs-go','2'); await pg.fill('#gs-gm','1'); await pg.click('#gs-save'); await saved(pg)
     if await tiles(pg).count()==0: await pg.click('#add-table'); await saved(pg)
     await tiles(pg).nth(0).click(); await pg.locator('[data-a="recv"]').first.click(); await pg.click('#type-in_guide'); await pg.click('#p-support'); await pg.click('#serve-end'); await saved(pg)
     await pg.click('#role-mgr'); print(tag,'table role: kpi tiles',await pg.locator('.kpi').count(),'title',await pg.text_content('#tb-t')); await ov(pg,tag,'notice')
@@ -211,6 +232,7 @@ async def run_kanri(b,tag,w,h,first):
     await pg.locator('#mx td.nm button').first.click(); await pg.wait_for_selector('#dt'); print(tag,'drill',await pg.text_content('#dt h3'),'| rows',await pg.evaluate("document.querySelector('#dt table').tBodies[0].rows.length")); await pg.locator('#prod').screenshot(path=f'/home/claude/a_{tag}_kprod.png'); await ov(pg,tag,'kp_drill')
     await pg.click('#lv-shops'); await pg.locator('#prod').screenshot(path=f'/home/claude/a_{tag}_kprod_shops.png'); await pg.click('#lv-all')
     print(tag,'time section: rows',await pg.evaluate("document.querySelector('#time table').tBodies[0].rows.length"),'| pills',await pg.evaluate("[...document.querySelectorAll('#time .pill')].map(e=>e.textContent).join(' | ')"),'| row1',await pg.evaluate("[...document.querySelector('#time table').tBodies[0].rows[0].cells].map(c=>c.textContent).join(' , ')")); await pg.locator('#time').screenshot(path=f'/home/claude/a_{tag}_ktime.png'); await ov(pg,tag,'ktime')
+    print(tag,'src section:',await pg.evaluate("(document.querySelector('#src .box')||{}).innerText||'none'")); print(tag,'goal section: pills',await pg.evaluate("[...document.querySelectorAll('#goal .pill')].map(e=>e.textContent).join(' | ')"),'| tables',await pg.evaluate("document.querySelectorAll('#goal table').length")); await pg.locator('#goal').screenshot(path=f'/home/claude/a_{tag}_kgoal.png'); await ov(pg,tag,'kgoal')
     print(tag,'act section: pills',await pg.evaluate("[...document.querySelectorAll('#act .pill')].map(e=>e.textContent).join(' | ')"),'| tables',await pg.evaluate("document.querySelectorAll('#act table').length"),'| staff rows',await pg.evaluate("[...document.querySelectorAll('#act table')].slice(-2)[0].tBodies[0].rows.length"),'| miss',await pg.evaluate("(document.getElementById('act-miss')||{}).textContent||'none'"),'| slack',await pg.evaluate("(document.getElementById('act-slack')||{}).textContent||'none'")); await pg.locator('#act').screenshot(path=f'/home/claude/a_{tag}_kact.png'); await ov(pg,tag,'kact')
     await pg.select_option('#shop-sel',index=2); await pg.wait_for_timeout(1500); print(tag,'one shop: shop table shown',await pg.evaluate("[...document.querySelectorAll('h2')].some(h=>h.textContent==='店舗別')"),'| kpi',await pg.evaluate("document.querySelector('.kpi .v').textContent"))
     await pg.screenshot(path=f'/home/claude/a_{tag}_kfull.png',full_page=True)
