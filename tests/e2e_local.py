@@ -37,6 +37,8 @@ async def hear(pg,age):
     b=pg.locator(f'[data-k="age"][data-v="{age}"]')
     if await b.get_attribute('aria-pressed')!='true': await b.click()
     for k in ['purpose','carrier','lines','net']: await pg.locator(f'[data-k="{k}"]').first.click()
+    for k in ['src','own']:
+        if await pg.locator(f'[data-k="{k}"]').count(): await pg.locator(f'[data-k="{k}"]').first.click()
 async def run(b,tag,w,h):
     pg,errs=await newpage(b,w,h)
     async def shot(n):
@@ -118,7 +120,13 @@ async def run(b,tag,w,h):
     print(tag,'end ->',await pg.text_content('#tb-t'),'tables',await tiles(pg).count())
     # guide skip
     await tiles(pg).nth(2).click(); await pg.locator('[data-a="recv"]').nth(1).click(); await pg.click('#type-in_guide'); print(tag,'guide ->',await pg.text_content('#tb-t')); await pg.click('#serve-end'); await saved(pg)
-    await tiles(pg).nth(2).click(); await pg.locator('[data-a="recv"]').nth(1).click(); await pg.click('#type-in_guide_h'); print(tag,'guide with hearing ->',await pg.text_content('#tb-t'),'| types',await pg.evaluate("9")); await pg.click('#mode-staff'); await hear(pg,'60〜64歳'); await pg.click('#sh-done'); await pg.locator('[data-a="pick"]').first.click(); await pg.click('#serve-end'); await saved(pg)
+    await tiles(pg).nth(2).click(); await pg.locator('[data-a="recv"]').nth(1).click(); await pg.click('#type-in_guide_h'); print(tag,'guide with hearing ->',await pg.text_content('#tb-t'),'| types',await pg.evaluate("9")); await pg.click('#mode-staff')
+    print(tag,'inbound staff entry:',(await pg.text_content('#sh-note'))[:14],'| questions',await pg.locator('.box > .sec').count()-1,'| left',await pg.text_content('#sh-left'),'| src buttons',await pg.locator('[data-k="src"]').count(),'| own buttons',await pg.locator('[data-k="own"]').count())
+    await pg.locator('[data-k="age"][data-v="60〜64歳"]').click()
+    for k in ['purpose','carrier','lines','net']: await pg.locator(f'[data-k="{k}"]').first.click()
+    print(tag,'5 of 7 chosen: done disabled',await pg.is_disabled('#sh-done'),'|',await pg.text_content('#sh-left')); await pg.locator('[data-k="src"]').nth(4).click(); await pg.locator('[data-k="own"]').nth(1).click(); await shot('staff7'); await ov(pg,tag,'staff7')
+    await pg.click('#sh-done'); await pg.locator('[data-a="pick"]').first.click(); await saved(pg); print(tag,'inbound staff saved: db',admin("select v.hearing_by||' / '||h.source||' / '||h.owner_present from visit_hearings h join visits v on v.id=h.visit_id order by h.answered_at desc limit 1"),'| owner warning',await pg.locator('#own-warn').count()); await pg.click('#serve-end'); await saved(pg)
+    await tiles(pg).nth(2).click(); await pg.locator('[data-a="recv"]').first.click(); await pg.click('#type-out'); print(tag,'outbound staff entry:',(await pg.text_content('#sh-note'))[:14],'| src buttons',await pg.locator('[data-k="src"]').count()); await hear(pg,'50代'); await pg.click('#sh-done'); await pg.locator('[data-a="pick"]').first.click(); await pg.click('#serve-end'); await saved(pg)
     # ヒアリングの途中で終了（成約なし）
     LAST="select phase||'/'||coalesce(result,'null')||'/'||coalesce(hearing_by,'null')||'/h'||(select count(*) from visit_hearings h where h.visit_id=v.id)||'/g'||(select count(*) from visit_segments g where g.visit_id=v.id)||'/ended '||(ended_at is not null) from visits v order by started_at desc limit 1"
     await tiles(pg).nth(2).click(); await pg.locator('[data-a="recv"]').nth(1).click(); await pg.click('#type-in_guide_h'); await pg.click('#hear-end'); await shot('endhear')

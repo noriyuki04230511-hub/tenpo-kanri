@@ -290,6 +290,8 @@ const QS=[
 const Q_SRC={k:'src',s:'きっかけ',q:'当店を何でお知りになりましたか',o:['インターネット検索','Googleマップ','SNS','お買い物の際に店舗を見かけた','家族・知人からの紹介','以前、当店で契約したことがある','以前から店舗を知っていた','その他']};
 const Q_OWN={k:'own',s:'ご契約者様',q:'本日、ご契約者様ご本人は来店されていますか',note:'ご相談内容やスマートフォンの操作・各種お手続きの内容によっては、ご契約者様ご本人の来店が必要となる場合がございます。',o:['来店している','来店していない']};
 const CQS=[Q_SRC,...QS,Q_OWN];
+/* スタッフが記入するとき：インバウンドの区分だけ、きっかけ・ご契約者様の来店も聞く */
+const SQS=()=>{const v=V(); return v&&typeOf(v.type).inbound?CQS:QS;};
 const ov=o=>typeof o==='string'?o:o.v, ol=o=>typeof o==='string'?o:`${o.v}<small class="od">${o.d}</small>`;
 const PRODS=[
  {k:'carrier',n:'携帯（SB／YM／UQ／ERA）'},{k:'net',n:'自宅のインターネット'},{k:'support',n:'店頭サポート（保証込み）'},
@@ -573,11 +575,11 @@ custdone(){
     ${endLink('スタッフ用：お客様が帰られた場合は、ここで終了（成約なし）')}`};
 },
 staffhear(){
-  const d=S.draft, left=QS.filter(q=>!d[q.k]).length;
-  return {t:'ヒアリング入力',band:ctxBand(),body:`<section class="box" style="gap:24px"><p class="sub">5問すべてを選ぶと、担当を選べます（「お渡し・実施したもの」は任意）。年代は見た目で決めず、お客様に伺って選びます</p>
-    ${QS.map(q=>`<div class="sec" style="gap:10px"><h2>${q.q}${d[q.k]?'':'<span class="chip noshow" style="margin-left:10px;font-weight:400">未選択</span>'}</h2><div class="row" style="gap:8px">${q.o.map(o=>`<button class="tg a auto" aria-pressed="${d[q.k]===ov(o)}" data-a="sans" data-k="${q.k}" data-v="${esc(ov(o))}">${CHK}${ov(o)}${typeof o==='string'?'':`（${o.d}）`}</button>`).join('')}</div></div>`).join('')}
+  const d=S.draft, qs=SQS(), left=qs.filter(q=>!d[q.k]).length;
+  return {t:'ヒアリング入力',band:ctxBand(),body:`<section class="box" style="gap:24px"><p class="sub" id="sh-note">${qs.length}問すべてを選ぶと、担当を選べます（「お渡し・実施したもの」は任意）。年代は見た目で決めず、お客様に伺って選びます</p>
+    ${qs.map(q=>`<div class="sec" style="gap:10px"><h2>${q.q}${d[q.k]?'':'<span class="chip noshow" style="margin-left:10px;font-weight:400">未選択</span>'}</h2><div class="row" style="gap:8px">${q.o.map(o=>`<button class="tg a auto" aria-pressed="${d[q.k]===ov(o)}" data-a="sans" data-k="${q.k}" data-v="${esc(ov(o))}">${CHK}${ov(o)}${typeof o==='string'?'':`（${o.d}）`}</button>`).join('')}</div></div>`).join('')}
     <div class="sec" style="gap:10px"><h2>お渡し・実施したもの（任意）</h2><div class="row" style="gap:8px">${EXTRA.map((o,i)=>`<button class="tg a auto" id="extra-${i}" aria-pressed="${(d.extra||[]).includes(o)}" data-a="sans" data-k="extra" data-v="${o}">${CHK}${o}</button>`).join('')}</div></div></section>`,
-   act:`<div class="action"><div class="sum" id="sh-left">${left?`あと${left}問を選ぶと進めます`:'5問の入力が済みました'}</div><button class="btn onblue" id="hear-end" data-a="ask" data-k="endhear">ここで終了（成約なし）</button><button class="btn" id="sh-done" data-a="shdone" ${left?'disabled':''}>担当を選ぶ${CHEV}</button></div>`};
+   act:`<div class="action"><div class="sum" id="sh-left">${left?`あと${left}問を選ぶと進めます`:`${qs.length}問の入力が済みました`}</div><button class="btn onblue" id="hear-end" data-a="ask" data-k="endhear">ここで終了（成約なし）</button><button class="btn" id="sh-done" data-a="shdone" ${left?'disabled':''}>担当を選ぶ${CHEV}</button></div>`};
 },
 pick(){
   const v=V(), ch=S.changing, ap=S.afterPick;
@@ -820,7 +822,7 @@ const A={
  qback(){ if(S.step===0){S.screen='mode';} else S.step--; },
  qnext(){ if(S.step<CQS.length-1){S.step++;return;} saveHearing(); S.screen='custdone'; },
  sans(d){ if(d.k==='extra') S.draft.extra=toggle(S.draft.extra,d.v); else S.draft[d.k]=S.draft[d.k]===d.v?undefined:d.v; },
- shdone(){ if(QS.some(q=>!S.draft[q.k])) return; saveHearing(); S.screen='pick';},
+ shdone(){ if(SQS().some(q=>!S.draft[q.k])) return; saveHearing(); S.screen='pick';},
  pick(d){const v=V(), after=v.phase==='after';
    v.segs.push({id:uuid(),sid:d.id,p:[],w:[],a:[],stage:after?'after':'serve'});
    if(!after) v.phase='serving';

@@ -298,7 +298,7 @@ function render(){
     <section class="sec"><h2>来店区分別</h2><div class="box"><div class="legend"><span><i style="background:var(--blue)"></i>来店</span><span><i style="background:var(--ok)"></i>成約</span></div>${bars(R.byType.map(x=>({label:x.label,a:x.visits,b:x.won})),'a','b')}</div></section>
     <section class="sec" id="src"><h2>来店のきっかけ（お客様の回答）</h2><div class="box"><div class="legend"><span><i style="background:var(--blue)"></i>来店</span><span><i style="background:var(--ok)"></i>成約</span></div>${(R.bySource||[]).length?bars(R.bySource.map(x=>({label:x.src,a:x.visits,b:x.won})),'a','b'):'<p class="sub">この期間の回答はありません。</p>'}
       ${(R.byOwner||[]).length?`<div class="pills" id="own" style="margin-top:12px">${R.byOwner.map(x=>`<span class="pill">ご契約者様 ${esc(x.own)}<b>${x.visits}</b>組（成約${x.won}組）</span>`).join('')}</div>`:''}
-      <p class="sub">お客様がiPadで記入した来店だけが対象です。スタッフが記入した来店には、この2つの質問はありません。</p></div></section>
+      <p class="sub">インバウンドの来店が対象です（お客様の記入・スタッフの記入の両方）。アウトバウンドなど、インバウンド以外の区分では、この2つの質問はありません。</p></div></section>
     <section class="sec"><h2>年代別</h2><div class="box"><div class="legend"><span><i style="background:var(--blue)"></i>来店</span><span><i style="background:var(--ok)"></i>成約</span></div>${R.byAge.length?bars(R.byAge.map(x=>({label:x.age,a:x.visits,b:x.won})),'a','b'):'<p class="sub">この期間のヒアリングはありません。</p>'}</div></section>
     <section class="sec"><h2>スタッフ別</h2><div class="box">${tbl(['スタッフ','店舗','接客','提案','獲得'],R.byStaff.map(s=>`<tr><td>${esc(s.name)}</td><td>${esc(s.shop)}</td><td class="n">${s.visits}</td><td class="n">${s.proposed}</td><td class="n">${s.won}</td></tr>`),[2,3,4])}
       <p class="sub">順位づけのための表ではありません。提案が多く満足度が低い場合は、店舗別の満足度と合わせて確認します。</p></div></section>
